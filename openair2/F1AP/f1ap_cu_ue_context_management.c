@@ -398,15 +398,10 @@ int CU_send_UE_CONTEXT_SETUP_REQUEST(instance_t instance,
         /* 12.1.2.2 sNSSAI */
         {
           /* sST */
-          OCTET_STRING_fromBuf(&DRB_Information->sNSSAI.sST, "1", 1);
+          OCTET_STRING_fromBuf(&DRB_Information->sNSSAI.sST, (char*)&f1ap_ue_context_setup_req->drbs_to_be_setup[i].nssai.sST, 1);
 
           /* OPTIONAL */
-          /* sD */
-          if (0) {
-            asn1cCalloc(DRB_Information->sNSSAI.sD, tmp);
-            OCTET_STRING_fromBuf(tmp, "asdsa1d32sa1d31asd31as",
-                               strlen("asdsa1d32sa1d31asd31as"));
-          }
+          OCTET_STRING_fromBuf(DRB_Information->sNSSAI.sD, (char*)f1ap_ue_context_setup_req->drbs_to_be_setup[i].nssai.sD, 3);
         }
 
         /* OPTIONAL */

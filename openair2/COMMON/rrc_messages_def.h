@@ -83,3 +83,4 @@ MESSAGE_DEF(NRRRC_SLOT_PROCESS,         MESSAGE_PRIORITY_MED,       NRRrcSlotPro
 
 // eNB: RLC -> RRC messages
 MESSAGE_DEF(RLC_SDU_INDICATION,         MESSAGE_PRIORITY_MED,       RlcSduIndication,           rlc_sdu_indication)
+MESSAGE_DEF(NAS_PDU_SESSION_REQ,        MESSAGE_PRIORITY_MED,       NasPduSessionReq,           nas_pdu_session_req)

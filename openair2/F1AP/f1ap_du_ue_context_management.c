@@ -174,6 +174,19 @@ int DU_handle_UE_CONTEXT_SETUP_REQUEST(instance_t       instance,
           drb_p->rlc_mode = RLC_MODE_TM;
           break;
       }
+
+      /* S-NSSAI */
+      if (drbs_tobesetup_item_p->qoSInformation.present ==
+          F1AP_QoSInformation_PR_choice_extension) {
+        F1AP_QoSInformation_ExtIEs_t *ie = (F1AP_QoSInformation_ExtIEs_t *)drbs_tobesetup_item_p->qoSInformation.choice.choice_extension;
+        if (ie->id == F1AP_ProtocolIE_ID_id_DRB_Information &&
+            ie->criticality == F1AP_Criticality_reject &&
+            ie->value.present == F1AP_QoSInformation_ExtIEs__value_PR_DRB_Information) {
+          F1AP_DRB_Information_t *DRB_Information = &ie->value.choice.DRB_Information;
+          OCTET_STRING_TO_INT8(&DRB_Information->sNSSAI.sST, drb_p->nssai.sST);
+          memcpy(drb_p->nssai.sD, DRB_Information->sNSSAI.sD->buf, 3);
+        }
+      }
     }
   }
 

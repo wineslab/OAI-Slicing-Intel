@@ -220,6 +220,7 @@ typedef struct drb_s {
       int cipheringDisabled;
     } ext1;
   } pdcp_config;
+  ngap_allowed_NSSAI_t nssai;
 } drb_t;
 
 typedef enum {

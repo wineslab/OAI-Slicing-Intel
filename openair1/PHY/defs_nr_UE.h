@@ -662,6 +662,7 @@ typedef struct {
   notifiedFIFO_t phy_config_ind;
   notifiedFIFO_t *tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
   int tx_wait_for_dlsch[NR_MAX_SLOTS_PER_FRAME];
+  int network_slicing;
 } PHY_VARS_NR_UE;
 
 typedef struct nr_phy_data_tx_s {

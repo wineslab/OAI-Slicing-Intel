@@ -44,20 +44,148 @@
 #include "common/ran_context.h"
 #include "executables/softmodem-common.h"
 
+#include <time.h>
 extern RAN_CONTEXT_t RC;
 
 
 #define MACSTATSSTRLEN 16000
 
-void *nrmac_stats_thread(void *arg) {
+long get_time_milliseconds() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    long ms = ts.tv_sec * 1000 + round(ts.tv_nsec / 1.0e6);
+    return ms;
+}
+
+/* msleep(): Sleep for the requested number of milliseconds. */
+int msleep(long msec)
+{
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
+size_t o1_copy_mac_stats_csv(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset_rsrp)
+{
+  int num = 1;
+  const char *begin = output;
+  const char *end = output + strlen;
+
+  pthread_mutex_lock(&gNB->UE_info.mutex);
+
+  UE_iterator(gNB->UE_info.list, UE) {
+    NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
+    NR_mac_stats_t *stats = &UE->mac_stats;
+    const int avg_rsrp = stats->num_rsrp_meas > 0 ? stats->cumul_rsrp / stats->num_rsrp_meas : 0;
+
+    char ue_imsi[] = "0010100000107XX";
+    long timestamp = get_time_milliseconds();
+    output += snprintf(output,
+            end - output,
+            "%ld,%d,%d,%s,%04x,%d,%d,%f,%f, ,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%"PRIu32",%"PRIu16", ,%.5f,%d,%"PRIu64",%"PRIu64",%"PRIu32",%"PRIu32",%"PRIu32",%"PRIu32",%"PRIu64",%d,%d,%02d%02d%02d,%"PRIu64",%d,%d,%02d%02d%02d, ,%.5f,%d,%"PRIu64",%"PRIu64",%"PRIu32",%"PRIu32",%"PRIu32",%"PRIu32", ,\n",
+            timestamp,
+            gNB->frame,
+            gNB->slot,
+            ue_imsi,
+            UE->rnti,
+            UE->uid,
+            num++,
+            UE->dl_thr_ue,
+            UE->ul_thr_ue,
+            // UE sched ctrl
+            sched_ctrl->ph,
+            sched_ctrl->pcmax,
+            avg_rsrp,
+            sched_ctrl->CSI_report.cri_ri_li_pmi_cqi_report.wb_cqi_1tb,
+            sched_ctrl->CSI_report.cri_ri_li_pmi_cqi_report.ri+1,
+            sched_ctrl->raw_rssi,
+            sched_ctrl->ul_rssi,
+            sched_ctrl->dl_max_mcs,
+            sched_ctrl->sched_ul_bytes,
+            sched_ctrl->estimated_ul_buffer,
+            sched_ctrl->num_total_bytes,
+            sched_ctrl->dl_pdus_total,
+            // DL stats
+            sched_ctrl->dl_bler_stats.bler,
+            sched_ctrl->dl_bler_stats.mcs,
+            stats->dl.errors,
+            stats->dl.total_bytes,
+            stats->dl.current_bytes,
+            stats->dl.total_rbs,
+            stats->dl.current_rbs,
+            stats->dl.num_mac_sdu,
+            stats->dl.lc_bytes[4],
+            sched_ctrl->dl_sl_info[4].id,
+            sched_ctrl->dl_sl_info[4].nssai_config.sST,
+            sched_ctrl->dl_sl_info[4].nssai_config.sD[0],
+            sched_ctrl->dl_sl_info[4].nssai_config.sD[1],
+            sched_ctrl->dl_sl_info[4].nssai_config.sD[2],
+            stats->dl.lc_bytes[5],
+            sched_ctrl->dl_sl_info[5].id,
+            sched_ctrl->dl_sl_info[5].nssai_config.sST,
+            sched_ctrl->dl_sl_info[5].nssai_config.sD[0],
+            sched_ctrl->dl_sl_info[5].nssai_config.sD[1],
+            sched_ctrl->dl_sl_info[5].nssai_config.sD[2],
+            // UL stats
+            sched_ctrl->ul_bler_stats.bler,
+            sched_ctrl->ul_bler_stats.mcs,
+            stats->ul.errors,
+            stats->ul.total_bytes,
+            stats->ul.current_bytes,
+            stats->ul.total_rbs,
+            stats->ul.current_rbs,
+            stats->ul.num_mac_sdu
+            );
+
+    if (reset_rsrp) {
+      stats->num_rsrp_meas = 0;
+      stats->cumul_rsrp = 0;
+    }
+  }
+  pthread_mutex_unlock(&gNB->UE_info.mutex);
+  return output - begin;
+}
+
+void *nrmac_stats_thread(void *arg)
+{
 
   gNB_MAC_INST *gNB = (gNB_MAC_INST *)arg;
 
+  int report_interval = 1;
+
+  char ue_metrics_csv_filepath [] = "ue_metrics_multi_pdu.csv";
+
+  char csv_header[] = "Timestamp, Frame, Slot, IMSI, RNTI, UID, UE_No, DL_THR, UL_THR, ,PH_dB, PCMAX_dBm, AVG_RSRP, CQI, RI, raw_rssi, ul_rssi, dl_max_mcs, sched_ul_bytes, estimated_ul_buffer, num_total_bytes, dl_pdus_total, ,dl_BLER, dl_MCS, dlsch_errors, dlsch_total_bytes, dlsch_current_bytes, dlsch_total_rbs, dlsch_current_rbs, dl_num_mac_sdu, dl_lc4_bytes, dl_lc4_id, dl_lc4_sst,dl_lc4_sd, dl_lc5_bytes, dl_lc5_id, dl_lc5_sst,dl_lc5_sd, ,ul_BLER, ul_MCS, ulsch_errors, ulsch_total_bytes, ulsch_current_bytes, ulsch_total_rbs, ulsch_current_rbs, ul_num_mac_sdu, ,\n";
+
+  int size = 0;
   char output[MACSTATSSTRLEN] = {0};
   const char *end = output + MACSTATSSTRLEN;
-  FILE *file = fopen("nrMAC_stats.log","w");
-  AssertFatal(file!=NULL,"Cannot open nrMAC_stats.log, error %s\n",strerror(errno));
 
+  FILE *file = fopen(ue_metrics_csv_filepath,"a+");
+
+  AssertFatal(file!=NULL,"Cannot open %s, error %s\n",ue_metrics_csv_filepath, strerror(errno));
+
+  if (NULL !=file){
+    fseek(file,0,SEEK_END);
+    size = ftell(file);
+  }
+  if (size == 0){
+    fprintf(file, "%s", csv_header);
+  }
   while (oai_exit == 0) {
     char *p = output;
     NR_SCHED_LOCK(&gNB->sched_lock);
@@ -68,14 +196,42 @@ void *nrmac_stats_thread(void *arg) {
     p += print_meas_log(&gNB->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
     p += print_meas_log(&gNB->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
     p += print_meas_log(&gNB->rlc_status_ind, "rlc_status_ind", NULL, NULL, p, end - p);
+    p += o1_copy_mac_stats_csv(gNB, p, end - p, true);
     fwrite(output, p - output, 1, file);
     fflush(file);
-    sleep(1);
+    msleep(report_interval);
     fseek(file,0,SEEK_SET);
   }
   fclose(file);
   return NULL;
 }
+
+
+// void *nrmac_stats_thread(void *arg) {
+
+//   gNB_MAC_INST *gNB = (gNB_MAC_INST *)arg;
+
+//   char output[MACSTATSSTRLEN] = {0};
+//   const char *end = output + MACSTATSSTRLEN;
+//   FILE *file = fopen("nrMAC_stats.log","w");
+//   AssertFatal(file!=NULL,"Cannot open nrMAC_stats.log, error %s\n",strerror(errno));
+
+//   while (oai_exit == 0) {
+//     char *p = output;
+//     p += dump_mac_stats(gNB, p, end - p, false);
+//     p += snprintf(p, end - p, "\n");
+//     p += print_meas_log(&gNB->eNB_scheduler, "DL & UL scheduling timing", NULL, NULL, p, end - p);
+//     p += print_meas_log(&gNB->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
+//     p += print_meas_log(&gNB->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
+//     p += print_meas_log(&gNB->rlc_status_ind, "rlc_status_ind", NULL, NULL, p, end - p);
+//     fwrite(output, p - output, 1, file);
+//     fflush(file);
+//     sleep(1);
+//     fseek(file,0,SEEK_SET);
+//   }
+//   fclose(file);
+//   return NULL;
+// }
 
 void clear_mac_stats(gNB_MAC_INST *gNB) {
   UE_iterator(gNB->UE_info.list, UE) {
@@ -252,6 +408,7 @@ void mac_top_init_gNB(ngran_node_t node_type)
         RC.nrmac[i]->pre_processor_dl = nr_init_fr1_dlsch_preprocessor(0);
         RC.nrmac[i]->pre_processor_ul = nr_init_fr1_ulsch_preprocessor(0);
       }
+
       if (!IS_SOFTMODEM_NOSTATS_BIT)
          threadCreate(&RC.nrmac[i]->stats_thread, nrmac_stats_thread, (void*)RC.nrmac[i], "MAC_STATS", -1,     sched_get_priority_min(SCHED_OAI)+1 );
       mac_rrc_init(RC.nrmac[i], node_type);
@@ -281,7 +438,7 @@ void mac_top_init_gNB(ngran_node_t node_type)
        * the noS1 mode.  Hence, below, we simply hardcode ENB_FLAG_NO */
       // setup PDCP, RLC
       nr_pdcp_add_drbs(ENB_FLAG_NO, 0x1234, 0, rbconfig->drb_ToAddModList, 0, NULL, NULL, &rlc_bearer_list);
-      nr_rlc_add_drb(0x1234, rbconfig->drb_ToAddModList->list.array[0]->drb_Identity, rlc_rbconfig);
+      nr_rlc_add_drb(0x1234, rbconfig->drb_ToAddModList->list.array[0]->drb_Identity, rlc_rbconfig, NULL);
 
       // free memory
       free_nr_noS1_bearer_config(&rbconfig, &rlc_rbconfig);

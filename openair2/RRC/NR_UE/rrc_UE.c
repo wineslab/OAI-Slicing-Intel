@@ -191,7 +191,8 @@ static void nr_rrc_addmod_srbs(int rnti,
 
 static void nr_rrc_addmod_drbs(int rnti,
                                const NR_DRB_ToAddModList_t *drb_list,
-                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list)
+                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list,
+                               const drb_t *drbs)
 {
   if (drb_list == NULL || bearer_list == NULL)
     return;
@@ -203,7 +204,7 @@ static void nr_rrc_addmod_drbs(int rnti,
       if (bearer->servedRadioBearer != NULL
           && bearer->servedRadioBearer->present == NR_RLC_BearerConfig__servedRadioBearer_PR_drb_Identity
           && drb->drb_Identity == bearer->servedRadioBearer->choice.drb_Identity) {
-        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer);
+        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer, NULL);
       }
     }
   }
@@ -2023,7 +2024,8 @@ int32_t nr_rrc_ue_establish_drb(module_id_t ue_mod_idP,
      // Refresh DRBs
      nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid,
                         radioBearerConfig->drb_ToAddModList,
-                        ue_rrc->cell_group_config->rlc_BearerToAddModList);
+                        ue_rrc->cell_group_config->rlc_BearerToAddModList,
+                        NULL);
 
    } // drb_ToAddModList //
 

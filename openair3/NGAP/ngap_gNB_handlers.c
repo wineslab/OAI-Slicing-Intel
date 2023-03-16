@@ -973,12 +973,12 @@ int ngap_gNB_handle_pdusession_setup_request(uint32_t         assoc_id,
     msg->pdusession_setup_params[i].pdusession_id = item_p->pDUSessionID;
 
     // S-NSSAI
-    OCTET_STRING_TO_INT8(&item_p->s_NSSAI.sST, msg->allowed_nssai[i].sST);
-    if (item_p->s_NSSAI.sD != NULL) {
-      msg->allowed_nssai[i].sD_flag = 1;
-      msg->allowed_nssai[i].sD[0] = item_p->s_NSSAI.sD->buf[0];
-      msg->allowed_nssai[i].sD[1] = item_p->s_NSSAI.sD->buf[1];
-      msg->allowed_nssai[i].sD[2] = item_p->s_NSSAI.sD->buf[2];
+    OCTET_STRING_TO_INT8(&item_p->s_NSSAI.sST, msg->pdusession_setup_params[i].nssai.sST);
+    if(item_p->s_NSSAI.sD != NULL) {
+      msg->pdusession_setup_params[i].nssai.sD_flag = 1;
+      msg->pdusession_setup_params[i].nssai.sD[0] = item_p->s_NSSAI.sD->buf[0];
+      msg->pdusession_setup_params[i].nssai.sD[1] = item_p->s_NSSAI.sD->buf[1];
+      msg->pdusession_setup_params[i].nssai.sD[2] = item_p->s_NSSAI.sD->buf[2];
     }
 
     allocCopy(&msg->pdusession_setup_params[i].nas_pdu, *item_p->pDUSessionNAS_PDU);

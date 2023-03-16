@@ -29,6 +29,7 @@
 #include "openair2/F1AP/f1ap_common.h"
 #include "openair2/GNB_APP/gnb_config.h"
 #include "nr_pdcp/nr_pdcp_oai_api.h"
+#include "openair2/SLICING/ue_slice_manager.h"
 
 RAN_CONTEXT_t RC;
 THREAD_STRUCT thread_struct;
@@ -37,6 +38,7 @@ int32_t uplink_frequency_offset[MAX_NUM_CCs][4];
 int asn1_xer_print;
 int oai_exit = 0;
 instance_t CUuniqInstance = 0;
+nr_nas_msg_snssai_t nas_allowed_nssai[8];
 
 void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
 {
@@ -89,7 +91,7 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
   abort();
 }
 
-void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
+void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, const ngap_allowed_NSSAI_t *nssai)
 {
   abort();
 }

@@ -99,7 +99,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         break;
 
       case IEI_PDU_ADDRESS:
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received PDU Address IE\n");
+        LOG_I(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received PDU Address IE\n");
         psea_msg.pdu_addr_ie.pdu_length  = *(buffer + offset++);
         psea_msg.pdu_addr_ie.pdu_type    = *(buffer + offset++);
 
@@ -110,8 +110,8 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
           psea_msg.pdu_addr_ie.pdu_addr_oct4 = *(buffer + offset++);
           nas_getparams();
           sprintf(baseNetAddress, "%d.%d", psea_msg.pdu_addr_ie.pdu_addr_oct1, psea_msg.pdu_addr_ie.pdu_addr_oct2);
-          nas_config(1, psea_msg.pdu_addr_ie.pdu_addr_oct3, psea_msg.pdu_addr_ie.pdu_addr_oct4, "oaitun_ue");
-          LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received UE IP: %d.%d.%d.%d\n",
+          nas_config(psea_msg.pdu_id, psea_msg.pdu_addr_ie.pdu_addr_oct3, psea_msg.pdu_addr_ie.pdu_addr_oct4, "oaitun_ue");
+          LOG_I(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received UE IP: %d.%d.%d.%d\n",
                 psea_msg.pdu_addr_ie.pdu_addr_oct1,
                 psea_msg.pdu_addr_ie.pdu_addr_oct2,
                 psea_msg.pdu_addr_ie.pdu_addr_oct3,
@@ -193,6 +193,6 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
     }
   }
 
-  set_qfi_pduid(qos_rule.qfi, psea_msg.pdu_id);
+  nr_sdap_set_qfi(qos_rule.qfi, psea_msg.pdu_id, 0, false);
   return;
 }

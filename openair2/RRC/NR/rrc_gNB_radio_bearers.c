@@ -92,6 +92,8 @@ void generateDRB(gNB_RRC_UE_t *ue,
       est_drb->pdcp_config.ext1.cipheringDisabled = 1;
     else
       est_drb->pdcp_config.ext1.cipheringDisabled = NR_PDCP_Config__ext1__cipheringDisabled_true;
+    /* NSSAI Configuration */
+    est_drb->nssai = pduSession->param.nssai;
   }
 }
 

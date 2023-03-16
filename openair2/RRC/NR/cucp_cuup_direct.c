@@ -77,6 +77,8 @@ void fill_e1ap_bearer_setup_resp(e1ap_bearer_setup_resp_t *resp,
         drbSetup->qosFlows[k].id = drb2Setup->qosFlows[k].id;
       }
     }
+    resp->pduSession[i].sst = req->pduSession[i].sst;
+    memcpy(resp->pduSession[i].sd, req->pduSession[i].sd, 3);
   }
 }
 
@@ -172,6 +174,7 @@ static void cucp_cuup_bearer_context_setup_direct(e1ap_bearer_setup_req_t *const
   resp.numPDUSessions = req->numPDUSessions;
   for (int i = 0; i < resp.numPDUSessions; ++i) {
     resp.pduSession[i].numDRBSetup = req->pduSession[i].numDRB2Setup;
+    resp.pduSession[i].id          = req->pduSession[i].sessionId;
     for (int j = 0; j < req->pduSession[i].numDRB2Setup; j++) {
       DRB_nGRAN_to_setup_t *req_drb = req->pduSession[i].DRBnGRanList + j;
       DRB_nGRAN_setup_t *resp_drb = resp.pduSession[i].DRBnGRanList + j;

@@ -31,6 +31,11 @@
 
 #include "common/utils/time_stat.h"
 
+static void set_rlc_entity_nssai(nr_rlc_entity_t *ent, const ngap_allowed_NSSAI_t *nssai)
+{
+  ent->nssai = (nssai) ? *nssai : (ngap_allowed_NSSAI_t){.sST = 0xFF, .sD[0] = 0xFF};
+}
+
 static void nr_rlc_entity_get_stats(
     nr_rlc_entity_t *entity,
     nr_rlc_statistics_t *out)
@@ -63,7 +68,8 @@ nr_rlc_entity_t *new_nr_rlc_entity_am(
     int poll_pdu,
     int poll_byte,
     int max_retx_threshold,
-    int sn_field_length)
+    int sn_field_length,
+    const ngap_allowed_NSSAI_t *nssai)
 {
   nr_rlc_entity_am_t *ret;
 
@@ -117,6 +123,9 @@ nr_rlc_entity_t *new_nr_rlc_entity_am(
    */
   ret->common.txsdu_avg_time_to_tx = time_average_new(100 * 1000, 1024);
 
+  set_rlc_entity_nssai(&ret->common, nssai);
+  LOG_I(RLC, "NSSAI SST is %d, SD is %d\n", ret->common.nssai.sST, ret->common.nssai.sD[0]);
+
   return (nr_rlc_entity_t *)ret;
 }
 
@@ -127,7 +136,8 @@ nr_rlc_entity_t *new_nr_rlc_entity_um(
                       char *buf, int size),
     void *deliver_sdu_data,
     int t_reassembly,
-    int sn_field_length)
+    int sn_field_length,
+    const ngap_allowed_NSSAI_t *nssai)
 {
   nr_rlc_entity_um_t *ret;
 
@@ -171,6 +181,9 @@ nr_rlc_entity_t *new_nr_rlc_entity_um(
    * initial_size of 1024 is arbitrary
    */
   ret->common.txsdu_avg_time_to_tx = time_average_new(100 * 1000, 1024);
+
+  set_rlc_entity_nssai(&ret->common, nssai);
+  LOG_I(RLC, "NSSAI SST is %d, SD is %d\n", ret->common.nssai.sST, ret->common.nssai.sD[0]);
 
   return (nr_rlc_entity_t *)ret;
 }
