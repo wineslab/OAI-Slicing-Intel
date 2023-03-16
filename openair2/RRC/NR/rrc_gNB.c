@@ -151,7 +151,8 @@ static void nr_rrc_addmod_srbs(int rnti,
 
 static void nr_rrc_addmod_drbs(int rnti,
                                const NR_DRB_ToAddModList_t *drb_list,
-                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list)
+                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list,
+                               const nr_drb_nssai_map_list_t *drb_nssai_list)
 {
   if (drb_list == NULL || bearer_list == NULL)
     return;
@@ -163,7 +164,7 @@ static void nr_rrc_addmod_drbs(int rnti,
       if (bearer->servedRadioBearer != NULL
           && bearer->servedRadioBearer->present == NR_RLC_BearerConfig__servedRadioBearer_PR_drb_Identity
           && drb->drb_Identity == bearer->servedRadioBearer->choice.drb_Identity) {
-        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer);
+        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer, drb_nssai_list);
       }
     }
   }
@@ -314,8 +315,29 @@ unsigned int rrc_gNB_get_next_transaction_identifier(module_id_t gnb_mod_idP)
   // used also in NGAP thread, so need thread safe operation
   unsigned int tmp = __atomic_add_fetch(&transaction_id[gnb_mod_idP], 1, __ATOMIC_SEQ_CST);
   tmp %= NR_RRC_TRANSACTION_IDENTIFIER_NUMBER;
-  LOG_T(NR_RRC, "generated xid is %d\n", tmp);
+  LOG_I(NR_RRC, "generated xid is %d\n", tmp);
   return tmp;
+}
+
+static void set_drb_nssai_map(rrc_gNB_ue_context_t *const ue_context_pP, const f1ap_ue_context_setup_t *const req) {
+  if(req->drbs_to_be_setup_length <= 0)
+    return;
+
+  nr_drb_nssai_map_list_t *drb_nssai_map = &ue_context_pP->ue_context.DRB_NSSAI_configList;
+  drb_nssai_map->num_drb2add = req->drbs_to_be_setup_length;
+
+  for (int i=0; i < req->drbs_to_be_setup_length; i++) {
+    /* DRB to S-NSSAI map */
+    drb_nssai_map->drb_nssai_list[i].drb_id = req->drbs_to_be_setup[i].drb_id;
+    drb_nssai_map->drb_nssai_list[i].nssai = req->drbs_to_be_setup[i].nssai;
+  }
+}
+
+static void reset_drb_snssai_map(rrc_gNB_ue_context_t *const ue_context_pP) {
+  nr_drb_nssai_map_list_t *drb_nssai_map = &ue_context_pP->ue_context.DRB_NSSAI_configList;
+  if (drb_nssai_map->num_drb2add > 0) {
+    drb_nssai_map->num_drb2add = 0;
+  }
 }
 
 static void apply_macrlc_config(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *const ue_context_pP, const protocol_ctxt_t *const ctxt_pP)
@@ -324,7 +346,7 @@ static void apply_macrlc_config(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *const u
   nr_rrc_mac_update_cellgroup(ue_context_pP->ue_context.rnti, cgc);
 
   nr_rrc_addmod_srbs(ctxt_pP->rntiMaybeUEid, ue_context_pP->ue_context.SRB_configList, cgc->rlc_BearerToAddModList);
-  nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, ue_context_pP->ue_context.DRB_configList, cgc->rlc_BearerToAddModList);
+  nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, ue_context_pP->ue_context.DRB_configList, cgc->rlc_BearerToAddModList, &ue_context_pP->ue_context.DRB_NSSAI_configList);
 }
 
 void apply_macrlc_config_reest(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *const ue_context_pP, const protocol_ctxt_t *const ctxt_pP, ue_id_t ue_id)
@@ -593,6 +615,7 @@ void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP,
   uint8_t drb_id_to_setup_start = 0;
   uint8_t nb_drb_to_setup = rrc->configuration.drbs;
   long drb_priority[NGAP_MAX_DRBS_PER_UE];
+  nr_drb_nssai_map_list_t *nssai_map_list = &ue_context_pP->ue_context.DRB_NSSAI_configList;
 
   int xid = rrc_gNB_get_next_transaction_identifier(ctxt_pP->module_id);
 
@@ -609,6 +632,7 @@ void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP,
       continue;
     }
     LOG_I(NR_RRC, "adding rnti %x pdusession %d, nb drb %d, xid %d\n", ue_p->rnti, ue_p->pduSession[i].param.pdusession_id, nb_drb_to_setup, xid);
+    int drb_count = 0;
     for(long drb_id_add = 1; drb_id_add <= nb_drb_to_setup; drb_id_add++){
       uint8_t drb_id;
       // Reference TS23501 Table 5.7.4-1: Standardized 5QI to QoS characteristics mapping
@@ -647,7 +671,14 @@ void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP,
         }
         LOG_D(RRC, "DRB Priority %ld\n", drb_priority[drb_id]); // To supress warning for now
       }
+
+      nssai_map_list->drb_nssai_list[drb_count].nssai = ue_context_pP->ue_context.pduSession[i].param.nssai;
+      nssai_map_list->drb_nssai_list[drb_count].drb_id = drb_id;
+      drb_count++;
     }
+    // TODO: would work if only one pdu session per request comes in.
+    ue_context_pP->ue_context.DRB_NSSAI_configList.num_drb2add = drb_count;
+    ue_context_pP->ue_context.DRB_NSSAI_configList2[xid] = *nssai_map_list;
 
     ue_p->pduSession[i].status = PDU_SESSION_STATUS_DONE;
     ue_p->pduSession[i].xid = xid;
@@ -1039,6 +1070,7 @@ static void rrc_gNB_process_RRCReconfigurationComplete(const protocol_ctxt_t *co
   NR_DRB_ToAddModList_t *DRB_configList = ue_p->DRB_configList2[xid];
   NR_SRB_ToAddModList_t *SRB_configList = ue_p->SRB_configList2[xid];
   NR_DRB_ToReleaseList_t *DRB_Release_configList2 = ue_p->DRB_Release_configList2[xid];
+  nr_drb_nssai_map_list_t *DRB_NSSAI_configList = &ue_context_pP->ue_context.DRB_NSSAI_configList2[xid];
   NR_DRB_Identity_t                  *drb_id_p      = NULL;
   //  uint8_t                             nr_DRB2LCHAN[8];
 
@@ -1089,7 +1121,7 @@ static void rrc_gNB_process_RRCReconfigurationComplete(const protocol_ctxt_t *co
     const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list =
         ue_context_pP->ue_context.masterCellGroup->rlc_BearerToAddModList;
     nr_rrc_addmod_srbs(ctxt_pP->rntiMaybeUEid, SRB_configList, bearer_list);
-    nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRB_configList, bearer_list);
+    nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRB_configList, bearer_list, DRB_NSSAI_configList);
   }
 
   /* Set the SRB active in UE context */
@@ -2686,8 +2718,14 @@ static void rrc_DU_process_ue_context_setup_request(MessageDef *msg_p, instance_
     // bearer IDs for the DRBs
     fill_mastercellGroupConfig(cellGroupConfig, UE->masterCellGroup, rrc->um_on_default_drb, SRB2_config ? 1 : 0, drb_id_to_setup_start, nb_drb_to_setup, drb_priority);
   protocol_ctxt_t ctxt = {.rntiMaybeUEid = req->rnti, .module_id = instance, .instance = instance, .enb_flag = 1, .eNB_index = instance};
+  /* add SNSSAI to ue_context so it will be used when configuring rlc entity */
+  set_drb_nssai_map(ue_context_p, req);
+
   apply_macrlc_config(rrc, ue_context_p, &ctxt);
-  
+
+  /* RLC entity configured with SNSSAI. Free information in ue_context's DRB_SNSSAI_configList */
+  //reset_drb_nssai_map(ue_context_p);
+
   if(req->rrc_container_length > 0){
     mem_block_t *pdcp_pdu_p = get_free_mem_block(req->rrc_container_length, __func__);
     memcpy(&pdcp_pdu_p->data[0], req->rrc_container, req->rrc_container_length);
@@ -2824,6 +2862,8 @@ static void rrc_DU_process_ue_context_modification_request(MessageDef *msg_p, in
   if(req->srbs_to_be_setup_length>0 || req->drbs_to_be_setup_length>0){
     cellGroupConfig = calloc(1, sizeof(NR_CellGroupConfig_t));
     fill_mastercellGroupConfig(cellGroupConfig, UE->masterCellGroup, rrc->um_on_default_drb, drb_id_to_setup_start < 2 ? 1 : 0, drb_id_to_setup_start, req->drbs_to_be_setup_length, drb_priority);
+    /* add SNSSAI to ue_context so it will be used when configuring rlc entity */
+    set_drb_nssai_map(ue_context_p, req);
     apply_macrlc_config(rrc, ue_context_p, &ctxt);
   }
   if(req->ReconfigComplOutcome == RRCreconf_failure){
@@ -3322,6 +3362,8 @@ void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_contex
     DRBs[i].up_ul_tnl[0].port = RC.nrrrc[ctxt.module_id]->eth_params_s.my_portd;
     DRBs[i].up_ul_tnl[0].teid = e1ap_resp->pduSession[0].DRBnGRanList[i].UpParamList[0].teId;
     DRBs[i].up_ul_tnl_length = 1;
+    DRBs[i].nssai.sST = e1ap_resp->pduSession[0].sst;
+    memcpy(DRBs[i].nssai.sD, e1ap_resp->pduSession[0].sd, 3);
   }
 
   itti_send_msg_to_task (TASK_CU_F1, ctxt.module_id, message_p);

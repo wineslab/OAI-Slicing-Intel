@@ -305,6 +305,16 @@ typedef struct drb_s {
   } pdcp_config;
 } drb_t;
 
+typedef struct nr_drb_nssai_map_s {
+  int drb_id;
+  ngap_allowed_NSSAI_t nssai;
+} nr_drb_nssai_map_t;
+
+typedef struct nr_drb_nssai_map_list_s {
+  int num_drb2add;
+  nr_drb_nssai_map_t drb_nssai_list[NGAP_MAX_DRBS_PER_UE];
+} nr_drb_nssai_map_list_t;
+
 typedef struct gNB_RRC_UE_s {
   uint8_t                            primaryCC_id;
   NR_SRB_ToAddModList_t             *SRB_configList;
@@ -314,6 +324,8 @@ typedef struct gNB_RRC_UE_s {
   NR_DRB_ToReleaseList_t            *DRB_Release_configList2[NR_RRC_TRANSACTION_IDENTIFIER_NUMBER];
   drb_t                              established_drbs[NGAP_MAX_DRBS_PER_UE];
   uint8_t                            DRB_active[NGAP_MAX_DRBS_PER_UE];
+  nr_drb_nssai_map_list_t           DRB_NSSAI_configList;
+  nr_drb_nssai_map_list_t           DRB_NSSAI_configList2[NR_RRC_TRANSACTION_IDENTIFIER_NUMBER];
 
   NR_SRB_INFO_TABLE_ENTRY Srb[maxSRBs]; // 3gpp max is 3 SRBs, number 1..3, we waste the entry 0 for code simplicity
   NR_MeasConfig_t                   *measConfig;

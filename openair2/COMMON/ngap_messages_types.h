@@ -288,6 +288,8 @@ typedef struct pdusession_s {
   uint32_t gtp_teid;
   /* Stores the DRB ID of the DRBs used by this PDU Session */
   uint8_t used_drbs[NGAP_MAX_DRBS_PER_UE];
+  /* NSSAI */
+  ngap_allowed_NSSAI_t nssai;
 } pdusession_t;
 
 typedef enum pdusession_qosflow_mapping_ind_e{

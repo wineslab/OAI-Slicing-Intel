@@ -82,3 +82,4 @@ MESSAGE_DEF(RRC_SUBFRAME_PROCESS,       MESSAGE_PRIORITY_MED,       RrcSubframeP
 
 // eNB: RLC -> RRC messages
 MESSAGE_DEF(RLC_SDU_INDICATION,         MESSAGE_PRIORITY_MED,       RlcSduIndication,           rlc_sdu_indication)
+MESSAGE_DEF(NAS_PDU_SESSION_REQ,        MESSAGE_PRIORITY_MED,       NasPduSessionReq,           nas_pdu_session_req)

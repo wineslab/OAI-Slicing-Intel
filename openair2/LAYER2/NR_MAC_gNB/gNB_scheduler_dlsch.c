@@ -35,6 +35,7 @@
 #include "NR_MAC_gNB/nr_mac_gNB.h"
 #include "NR_MAC_COMMON/nr_mac_extern.h"
 #include "LAYER2/NR_MAC_gNB/mac_proto.h"
+#include "LAYER2/nr_rlc/nr_rlc_oai_api.h"
 
 /*NFAPI*/
 #include "nfapi_nr_interface.h"
@@ -309,6 +310,22 @@ int nr_write_ce_dlsch_pdu(module_id_t module_idP,
   offset = ((unsigned char *) mac_pdu_ptr - mac_pdu);
   //printf("Offset %d \n", ((unsigned char *) mac_pdu_ptr - mac_pdu));
   return offset;
+}
+
+void nr_store_dl_slice_info(module_id_t module_id) {
+
+  UE_iterator(RC.nrmac[module_id]->UE_info.list, UE) {
+    NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
+    for (int i = 0; i < sched_ctrl->dl_lc_num; ++i) {
+      const int lcid = sched_ctrl->dl_lc_ids[i];
+      const uint16_t rnti = UE->rnti;
+      if (lcid == DL_SCH_LCID_DTCH && sched_ctrl->rrc_processing_timer > 0) {
+        continue;
+      }
+      sched_ctrl->nssai[lcid] = mac_rlc_get_nssai(rnti,
+                                                  lcid);
+    }
+  }
 }
 
 void nr_store_dlsch_buffer(module_id_t module_id,
@@ -824,6 +841,9 @@ void nr_fr1_dlsch_preprocessor(module_id_t module_id, frame_t frame, sub_frame_t
       n_rb_sched++;
     }
   }
+
+  /* Retrieve NSSAI from RLC */
+  nr_store_dl_slice_info(module_id);
 
   /* Retrieve amount of data to send for this UE */
   nr_store_dlsch_buffer(module_id, frame, slot);

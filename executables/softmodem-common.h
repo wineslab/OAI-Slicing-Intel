@@ -103,6 +103,7 @@ extern "C"
 #define CONFIG_L1_EMULATOR       "Run in L1 emulated mode (disable PHY layer)\n"
 #define CONFIG_HLP_CONTINUOUS_TX "perform continuous transmission, even in TDD mode (to work around USRP issues)\n"
 #define CONFIG_HLP_STATS_DISABLE "disable globally the stats generation and persistence"
+#define CONFIG_HLP_NETSLICE      "Enable network slicing: Opens terminal to manage PDU sessions\n"
 
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            command line parameters common to eNodeB and UE                                                          */
@@ -132,6 +133,7 @@ extern "C"
 #define NON_STOP            softmodem_params.non_stop
 #define EMULATE_L1          softmodem_params.emulate_l1
 #define CONTINUOUS_TX       softmodem_params.continuous_tx
+#define NET_SLICE           softmodem_params.network_slicing
 
 #define DEFAULT_RFCONFIG_FILE    "/usr/local/etc/syriq/ue.band7.tm1.PRB100.NR40.dat";
 
@@ -174,6 +176,7 @@ extern int usrp_tx_thread;
   {"emulate-l1",            CONFIG_L1_EMULATOR,       PARAMFLAG_BOOL, .iptr=&EMULATE_L1,                      .defintval=0,             TYPE_INT,    0},  \
   {"continuous-tx",         CONFIG_HLP_CONTINUOUS_TX, PARAMFLAG_BOOL, .iptr=&CONTINUOUS_TX,                   .defintval=0,             TYPE_INT,    0},  \
   {"disable-stats",         CONFIG_HLP_STATS_DISABLE, PARAMFLAG_BOOL, .iptr=&stats_disabled,                  .defintval=0,             TYPE_INT,    0},  \
+  {"net-slice",             CONFIG_HLP_NETSLICE,      PARAMFLAG_BOOL, .iptr=&NET_SLICE,                       .defintval=0,      TYPE_INT,    0}, \
 }
 // clang-format on
 
@@ -214,6 +217,7 @@ extern int usrp_tx_thread;
                {"MONOLITHIC", "PNF", "VNF","UE_STUB_PNF","UE_STUB_OFFNET","STANDALONE_PNF"}, \
                {NFAPI_MONOLITHIC, NFAPI_MODE_PNF, NFAPI_MODE_VNF,NFAPI_UE_STUB_PNF,NFAPI_UE_STUB_OFFNET,NFAPI_MODE_STANDALONE_PNF}, \
                6 } }, \
+    { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
@@ -324,6 +328,7 @@ typedef struct {
   int            non_stop;
   int            emulate_l1;
   int            continuous_tx;
+  int            network_slicing;
 } softmodem_params_t;
 
 extern uint64_t get_softmodem_optmask(void);

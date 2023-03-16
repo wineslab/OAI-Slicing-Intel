@@ -163,6 +163,30 @@ int netlink_init_tun(char *ifprefix, int num_if, int id) {//for UE, id = 1, 2, .
   return 1;
 }
 
+int netlink_init_single_tun(char *ifprefix, int id) {
+  int ret;
+  char ifname[64];
+  int sock;
+
+  sprintf(ifname, "%s%d", ifprefix, id);
+  sock = tun_alloc(ifname);
+
+  if (sock == -1) {
+    LOG_E(SDAP, "TUN: Error opening socket %s (%d:%s)\n", ifname, errno, strerror(errno));
+    exit(1);
+  }
+
+  LOG_I(SDAP, "TUN: Opened interface %s with fd = %d\n",
+         ifname, sock);
+  ret = fcntl(sock,F_SETFL,O_NONBLOCK);
+
+  if (ret == -1) {
+    LOG_E(SDAP, "TUN: Error fcntl (%d:%s)\n",errno, strerror(errno));
+    return ret;
+  }
+
+  return sock;
+}
 
 int netlink_init(void) {
   int ret;

@@ -61,6 +61,5 @@ void sdap_data_ind(rb_id_t pdcp_entity,
                    char *buf,
                    int size);
 
-void set_qfi_pduid(uint8_t qfi, uint8_t pduid);
-
+void start_sdap_tun_ue(nr_sdap_entity_t *entity);
 #endif

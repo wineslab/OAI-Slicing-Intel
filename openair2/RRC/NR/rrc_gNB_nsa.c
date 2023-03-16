@@ -378,7 +378,7 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
   const NR_RLC_BearerConfig_t *bearer = bearer_list->list.array[0];
   DevAssert(bearer_list->list.count == 1);
   DevAssert(drb->drb_Identity == bearer->servedRadioBearer->choice.drb_Identity);
-  nr_rlc_add_drb(ctxt.rntiMaybeUEid, drb->drb_Identity, bearer);
+  nr_rlc_add_drb(ctxt.rntiMaybeUEid, drb->drb_Identity, bearer, NULL);
 
   LOG_D(RRC, "%s:%d: done RRC PDCP/RLC ASN1 request for UE rnti %lx\n", __FUNCTION__, __LINE__, ctxt.rntiMaybeUEid);
 }

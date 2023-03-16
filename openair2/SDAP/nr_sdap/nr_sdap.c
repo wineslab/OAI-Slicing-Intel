@@ -19,10 +19,72 @@
  *      contact@openairinterface.org
  */
 
-#include "nr_sdap.h"
+#define _GNU_SOURCE
 
-uint8_t nas_qfi;
-uint8_t nas_pduid;
+#include "nr_sdap.h"
+#include <pthread.h>
+
+static void reblock_tun_socket(int sock)
+{
+  int f;
+
+  f = fcntl(sock, F_GETFL, 0);
+  f &= ~(O_NONBLOCK);
+  if (fcntl(sock, F_SETFL, f) == -1) {
+    LOG_E(SDAP, "reblock_tun_socket failed\n");
+    exit(1);
+  }
+}
+
+static void *ue_tun_read_thread(void *arg)
+{
+  nr_sdap_entity_t *entity = (nr_sdap_entity_t *)arg;
+  char rx_buf[NL_MAX_PAYLOAD];
+  int len;
+  protocol_ctxt_t ctxt;
+
+  int rb_id = 1;
+  char thread_name[64];
+  sprintf(thread_name, "ue_tun_read%d\n", entity->pdusession_id);
+  pthread_setname_np( pthread_self(), thread_name);
+  while (1) {
+    len = read(entity->pdusession_sock, &rx_buf, NL_MAX_PAYLOAD);
+
+    if (entity->stop_thread) break;
+
+    if (len == -1) {
+      LOG_E(PDCP, "%s:%d:%s: fatal\n", __FILE__, __LINE__, __FUNCTION__);
+      exit(1);
+    }
+
+    LOG_D(PDCP, "%s(): pdusession_sock read returns len %d\n", __func__, len);
+
+    ctxt.module_id = 0;
+    ctxt.enb_flag = 0;
+    ctxt.instance = 0;
+    ctxt.frame = 0;
+    ctxt.subframe = 0;
+    ctxt.eNB_index = 0;
+    ctxt.brOption = 0;
+    ctxt.rntiMaybeUEid = entity->ue_id;
+
+    bool dc = SDAP_HDR_UL_DATA_PDU;
+
+    entity->tx_entity(entity, &ctxt, SRB_FLAG_NO, rb_id, RLC_MUI_UNDEFINED, RLC_SDU_CONFIRM_NO, len, (unsigned char *)rx_buf, PDCP_TRANSMISSION_MODE_DATA, NULL, NULL, entity->qfi, dc);
+  }
+
+  return NULL;
+}
+
+void start_sdap_tun_ue(nr_sdap_entity_t *entity)
+{
+  reblock_tun_socket(entity->pdusession_sock);
+
+  if (pthread_create(&entity->pdusession_thread, NULL, ue_tun_read_thread, (void*)entity) != 0) {
+    LOG_E(PDCP, "%s:%d:%s: fatal\n", __FILE__, __LINE__, __FUNCTION__);
+    exit(1);
+  }
+}
 
 bool sdap_data_req(protocol_ctxt_t *ctxt_p,
                    const ue_id_t ue_id,
@@ -85,10 +147,4 @@ void sdap_data_ind(rb_id_t pdcp_entity,
                          ue_id,
                          buf,
                          size);
-}
-
-void set_qfi_pduid(uint8_t qfi, uint8_t pduid){
-  nas_qfi = qfi;
-  nas_pduid = pduid;
-  return;
 }

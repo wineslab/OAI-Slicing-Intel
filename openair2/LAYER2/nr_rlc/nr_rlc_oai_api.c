@@ -270,6 +270,31 @@ rlc_buffer_occupancy_t mac_rlc_get_buffer_occupancy_ind(
   return ret;
 }
 
+ngap_allowed_NSSAI_t mac_rlc_get_nssai(const rnti_t rntiP,
+                                       const logical_chan_id_t channel_idP)
+{
+  nr_rlc_ue_t *ue;
+  nr_rlc_entity_t *rb;
+  ngap_allowed_NSSAI_t ret;
+
+  nr_rlc_manager_lock(nr_rlc_ue_manager);
+  ue = nr_rlc_manager_get_ue(nr_rlc_ue_manager, rntiP);
+
+  switch (channel_idP) {
+  case 4 ... NGAP_MAX_DRBS_PER_UE: rb = ue->drb[channel_idP - 4]; break;
+  default:                         rb = NULL;                     break;
+  }
+
+  if (rb != NULL) {
+    ret = rb->nssai;
+  } else {
+    ret.sST = -1;
+  }
+
+  nr_rlc_manager_unlock(nr_rlc_ue_manager);
+  return ret;
+}
+
 
 rlc_op_status_t rlc_data_req     (const protocol_ctxt_t *const ctxt_pP,
 			const srb_flag_t   srb_flagP,
@@ -687,7 +712,8 @@ void nr_rlc_add_srb(int rnti, int srb_id, const NR_RLC_BearerConfig_t *rlc_Beare
                                      t_poll_retransmit,
                                      t_reassembly, t_status_prohibit,
                                      poll_pdu, poll_byte, max_retx_threshold,
-                                     sn_field_length);
+                                     sn_field_length,
+                                     NULL);
     nr_rlc_ue_add_srb_rlc_entity(ue, srb_id, nr_rlc_am);
 
     LOG_I(RLC, "%s:%d:%s: added srb %d to UE with RNTI 0x%x\n", __FILE__, __LINE__, __FUNCTION__, srb_id, rnti);
@@ -695,7 +721,21 @@ void nr_rlc_add_srb(int rnti, int srb_id, const NR_RLC_BearerConfig_t *rlc_Beare
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-static void add_drb_am(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
+static ngap_allowed_NSSAI_t *get_nssai_from_drb2add_list(const nr_drb_nssai_map_list_t *map_list, int drb_id) {
+  ngap_allowed_NSSAI_t *ret = NULL;
+  if (map_list) {
+    for (int i = 0; i < NGAP_MAX_DRBS_PER_UE; i++) {
+      const nr_drb_nssai_map_t *drb_nssai_map = map_list->drb_nssai_list + i;
+      if (drb_id == drb_nssai_map->drb_id) {
+        ret = (ngap_allowed_NSSAI_t *)&drb_nssai_map->nssai;
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
+static void add_drb_am(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, const nr_drb_nssai_map_list_t * const drb_nssai_list)
 {
   nr_rlc_entity_t            *nr_rlc_am;
   nr_rlc_ue_t                *ue;
@@ -768,7 +808,8 @@ static void add_drb_am(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_Be
                                      t_poll_retransmit,
                                      t_reassembly, t_status_prohibit,
                                      poll_pdu, poll_byte, max_retx_threshold,
-                                     sn_field_length);
+                                     sn_field_length,
+                                     get_nssai_from_drb2add_list(drb_nssai_list, drb_id));
     nr_rlc_ue_add_drb_rlc_entity(ue, drb_id, nr_rlc_am);
 
     LOG_I(RLC, "%s:%d:%s: added drb %d to UE with RNTI 0x%x\n", __FILE__, __LINE__, __FUNCTION__, drb_id, rnti);
@@ -776,7 +817,7 @@ static void add_drb_am(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_Be
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-static void add_drb_um(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
+static void add_drb_um(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, const nr_drb_nssai_map_list_t * const drb_nssai_list)
 {
   nr_rlc_entity_t            *nr_rlc_um;
   nr_rlc_ue_t                *ue;
@@ -835,7 +876,8 @@ static void add_drb_um(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_Be
                                      RLC_TX_MAXSIZE,
                                      deliver_sdu, ue,
                                      t_reassembly,
-                                     sn_field_length);
+                                     sn_field_length,
+                                     get_nssai_from_drb2add_list(drb_nssai_list, drb_id));
     nr_rlc_ue_add_drb_rlc_entity(ue, drb_id, nr_rlc_um);
 
     LOG_D(RLC, "%s:%d:%s: added drb %d to UE with RNTI 0x%x\n", __FILE__, __LINE__, __FUNCTION__, drb_id, rnti);
@@ -843,14 +885,14 @@ static void add_drb_um(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_Be
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
 
-void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig)
+void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, const nr_drb_nssai_map_list_t *drb_nssai_list)
 {
   switch (rlc_BearerConfig->rlc_Config->present) {
   case NR_RLC_Config_PR_am:
-    add_drb_am(rnti, drb_id, rlc_BearerConfig);
+    add_drb_am(rnti, drb_id, rlc_BearerConfig, drb_nssai_list);
     break;
   case NR_RLC_Config_PR_um_Bi_Directional:
-    add_drb_um(rnti, drb_id, rlc_BearerConfig);
+    add_drb_um(rnti, drb_id, rlc_BearerConfig, drb_nssai_list);
     break;
   default:
     LOG_E(RLC, "%s:%d:%s: fatal: unhandled DRB type\n",

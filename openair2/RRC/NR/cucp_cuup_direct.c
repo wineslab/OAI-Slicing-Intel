@@ -75,6 +75,8 @@ void fill_e1ap_bearer_setup_resp(e1ap_bearer_setup_resp_t *resp,
         drbSetup->qosFlows[k].id = drb2Setup->qosFlows[k].id;
       }
     }
+    resp->pduSession[i].sst = req->pduSession[i].sst;
+    memcpy(resp->pduSession[i].sd, req->pduSession[i].sd, 3);
   }
 }
 

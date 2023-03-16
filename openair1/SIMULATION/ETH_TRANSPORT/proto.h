@@ -64,6 +64,7 @@ void clear_UE_transport_info(uint8_t);
 int netlink_init(void);
 int netlink_init_tun(char *ifsuffix, int num_if, int id);
 int netlink_init_mbms_tun(char *ifsuffix, int id);
+int netlink_init_single_tun(char *ifprefix, int id);
 void netlink_cleanup(void);
 
 #endif /* EMU_PROTO_H_ */
