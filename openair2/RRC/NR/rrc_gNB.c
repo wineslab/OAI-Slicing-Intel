@@ -186,6 +186,19 @@ static void freeDRBlist(NR_DRB_ToAddModList_t *list)
   //ASN_STRUCT_FREE(asn_DEF_NR_DRB_ToAddModList, list);
   return;
 }
+
+static drb_t *find_DRB(const drb_t *drb_list, const int drb_id)
+{
+  if (drb_list == NULL) return NULL;
+  for (int i = 0; i < MAX_DRBS_PER_UE; i++) {
+    if (drb_list[i].status != DRB_INACTIVE &&
+        drb_list[i].drb_id == drb_id) {
+      return (drb_t*)(drb_list + i);
+    }
+  }
+  return NULL;
+}
+
 static void nr_rrc_addmod_srbs(int rnti,
                                const NR_SRB_INFO_TABLE_ENTRY *srb_list,
                                const int nb_srb,
@@ -209,7 +222,8 @@ static void nr_rrc_addmod_srbs(int rnti,
 
 static void nr_rrc_addmod_drbs(int rnti,
                                const NR_DRB_ToAddModList_t *drb_list,
-                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list)
+                               const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list,
+                               const drb_t *drbs)
 {
   if (drb_list == NULL || bearer_list == NULL)
     return;
@@ -221,7 +235,8 @@ static void nr_rrc_addmod_drbs(int rnti,
       if (bearer->servedRadioBearer != NULL
           && bearer->servedRadioBearer->present == NR_RLC_BearerConfig__servedRadioBearer_PR_drb_Identity
           && drb->drb_Identity == bearer->servedRadioBearer->choice.drb_Identity) {
-        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer);
+        const drb_t *estDRB = find_DRB(drbs, drb->drb_Identity);
+        nr_rlc_add_drb(rnti, drb->drb_Identity, bearer, estDRB ? &estDRB->nssai : NULL);
       }
     }
   }
@@ -429,7 +444,7 @@ static void apply_macrlc_config(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *const u
   nr_rrc_mac_update_cellgroup(ue_p->rnti, cgc);
   nr_rrc_addmod_srbs(ctxt_pP->rntiMaybeUEid, ue_p->Srb, maxSRBs, cgc->rlc_BearerToAddModList);
   NR_DRB_ToAddModList_t *DRBs = fill_DRB_configList(ue_p);
-  nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRBs, cgc->rlc_BearerToAddModList);
+  nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRBs, cgc->rlc_BearerToAddModList, ue_p->established_drbs);
   freeDRBlist(DRBs);
 }
 
@@ -1086,7 +1101,7 @@ static void rrc_gNB_process_RRCReconfigurationComplete(const protocol_ctxt_t *co
     LOG_D(NR_RRC,"Configuring RLC DRBs/SRBs for UE %04x\n",ue_context_pP->ue_context.rnti);
     const struct NR_CellGroupConfig__rlc_BearerToAddModList *bearer_list =
         ue_context_pP->ue_context.masterCellGroup->rlc_BearerToAddModList;
-    nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRB_configList, bearer_list);
+    nr_rrc_addmod_drbs(ctxt_pP->rntiMaybeUEid, DRB_configList, bearer_list, ue_p->established_drbs);
   }
 
   /* Loop through DRBs and establish if necessary */
@@ -2549,6 +2564,10 @@ void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_contex
     drbs[i].up_ul_tnl[0].port = rrc->eth_params_s.my_portd;
     drbs[i].up_ul_tnl[0].teid = e1ap_resp->pduSession[0].DRBnGRanList[i].UpParamList[0].teId;
     drbs[i].up_ul_tnl_length = 1;
+    /* pass NSSAI info to RLC */
+    rrc_pdu_session_param_t *RRC_pduSession = find_pduSession(UE, e1ap_resp->pduSession[0].id, false);
+    DevAssert(RRC_pduSession);
+    drbs[i].nssai = RRC_pduSession->param.nssai;
   }
 
   /* Instruction towards the DU for SRB2 configuration */

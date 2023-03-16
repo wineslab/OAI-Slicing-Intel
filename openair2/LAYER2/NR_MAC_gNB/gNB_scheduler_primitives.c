@@ -2388,6 +2388,10 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
   return (UE);
 }
 
+
+
+
+
 void set_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl,
                           const NR_UE_UL_BWP_t *ul_bwp,
                           const NR_ServingCellConfigCommon_t *scc) {

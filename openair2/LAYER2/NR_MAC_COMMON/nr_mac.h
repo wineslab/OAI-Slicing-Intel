@@ -56,6 +56,11 @@
 #define TABLE_38213_13_11_NUM_INDEXES 16
 #define TABLE_38213_13_12_NUM_INDEXES 14
 
+
+/*!\brief Maximum number of pdu sessions */
+#define MAX_NUM_PDU_SESSION 8
+#define MAX_NUM_SLICE 8
+
 // Definitions for MAC control and data
 #define NR_BCCH_DL_SCH 3 // SI
 #define NR_BCCH_BCH 5    // MIB

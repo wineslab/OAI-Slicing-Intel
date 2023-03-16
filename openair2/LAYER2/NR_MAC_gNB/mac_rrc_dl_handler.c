@@ -81,7 +81,7 @@ static int handle_ue_context_drbs_setup(int rnti,
   for (int i = 0; i < drbs_len; i++) {
     const f1ap_drb_to_be_setup_t *drb = &req_drbs[i];
     NR_RLC_BearerConfig_t *rlc_BearerConfig = get_bearerconfig_from_drb(drb);
-    nr_rlc_add_drb(rnti, drb->drb_id, rlc_BearerConfig);
+    nr_rlc_add_drb(rnti, drb->drb_id, rlc_BearerConfig, &drb->nssai);
 
     (*resp_drbs)[i] = *drb;
     // just put same number of tunnels in DL as in UL

@@ -282,6 +282,7 @@ typedef struct pdusession_s {
   transport_layer_addr_t gNB_addr_N3;
   uint32_t UPF_teid_N3;
   transport_layer_addr_t UPF_addr_N3;
+  ngap_allowed_NSSAI_t nssai;
 } pdusession_t;
 
 typedef enum pdusession_qosflow_mapping_ind_e{

@@ -449,51 +449,6 @@ static void *enb_tun_read_thread(void *_)
   return NULL;
 }
 
-static void *ue_tun_read_thread(void *_)
-{
-  extern int nas_sock_fd[];
-  char rx_buf[NL_MAX_PAYLOAD];
-  int len;
-  protocol_ctxt_t ctxt;
-  ue_id_t rntiMaybeUEid;
-  int has_ue;
-
-  int rb_id = 1;
-  pthread_setname_np( pthread_self(),"ue_tun_read"); 
-  while (1) {
-    len = read(nas_sock_fd[0], &rx_buf, NL_MAX_PAYLOAD);
-    if (len == -1) {
-      LOG_E(PDCP, "%s:%d:%s: fatal\n", __FILE__, __LINE__, __FUNCTION__);
-      exit(1);
-    }
-
-    LOG_D(PDCP, "%s(): nas_sock_fd read returns len %d\n", __func__, len);
-
-    nr_pdcp_manager_lock(nr_pdcp_ue_manager);
-    has_ue = nr_pdcp_get_first_ue_id(nr_pdcp_ue_manager, &rntiMaybeUEid);
-    nr_pdcp_manager_unlock(nr_pdcp_ue_manager);
-
-    if (!has_ue) continue;
-
-    ctxt.module_id = 0;
-    ctxt.enb_flag = 0;
-    ctxt.instance = 0;
-    ctxt.frame = 0;
-    ctxt.subframe = 0;
-    ctxt.eNB_index = 0;
-    ctxt.brOption = 0;
-    ctxt.rntiMaybeUEid = rntiMaybeUEid;
-
-    bool dc = SDAP_HDR_UL_DATA_PDU;
-    extern uint8_t nas_qfi;
-    extern uint8_t nas_pduid;
-
-    sdap_data_req(&ctxt, rntiMaybeUEid, SRB_FLAG_NO, rb_id, RLC_MUI_UNDEFINED, RLC_SDU_CONFIRM_NO, len, (unsigned char *)rx_buf, PDCP_TRANSMISSION_MODE_DATA, NULL, NULL, nas_qfi, dc, nas_pduid);
-  }
-
-  return NULL;
-}
-
 static void start_pdcp_tun_enb(void)
 {
   pthread_t t;
@@ -501,18 +456,6 @@ static void start_pdcp_tun_enb(void)
   reblock_tun_socket();
 
   if (pthread_create(&t, NULL, enb_tun_read_thread, NULL) != 0) {
-    LOG_E(PDCP, "%s:%d:%s: fatal\n", __FILE__, __LINE__, __FUNCTION__);
-    exit(1);
-  }
-}
-
-static void start_pdcp_tun_ue(void)
-{
-  pthread_t t;
-
-  reblock_tun_socket();
-
-  if (pthread_create(&t, NULL, ue_tun_read_thread, NULL) != 0) {
     LOG_E(PDCP, "%s:%d:%s: fatal\n", __FILE__, __LINE__, __FUNCTION__);
     exit(1);
   }
@@ -578,18 +521,8 @@ uint64_t nr_pdcp_module_init(uint64_t _pdcp_optmask, int id)
   initialized = 1;
   if (pthread_mutex_unlock(&m) != 0) abort();
 
-#if 0
-  pdcp_optmask = _pdcp_optmask;
-  return pdcp_optmask;
-#endif
-  /* temporary enforce netlink when UE_NAS_USE_TUN is set,
-     this is while switching from noS1 as build option
-     to noS1 as config option                               */
-  if ( _pdcp_optmask & UE_NAS_USE_TUN_BIT) {
-    pdcp_optmask = pdcp_optmask | PDCP_USE_NETLINK_BIT ;
-  }
-
   pdcp_optmask = pdcp_optmask | _pdcp_optmask ;
+
   LOG_I(PDCP, "pdcp init,%s %s\n",
         ((LINK_ENB_PDCP_TO_GTPV1U)?"usegtp":""),
         ((PDCP_USE_NETLINK)?"usenetlink":""));
@@ -597,18 +530,7 @@ uint64_t nr_pdcp_module_init(uint64_t _pdcp_optmask, int id)
   if (PDCP_USE_NETLINK) {
     nas_getparams();
 
-    if(UE_NAS_USE_TUN) {
-      char *ifsuffix_ue = get_softmodem_params()->nsa ? "nrue" : "ue";
-      int num_if = (NFAPI_MODE == NFAPI_UE_STUB_PNF || IS_SOFTMODEM_SIML1 || NFAPI_MODE == NFAPI_MODE_STANDALONE_PNF)? MAX_MOBILES_PER_ENB : 1;
-      netlink_init_tun(ifsuffix_ue, num_if, id);
-      //Add --nr-ip-over-lte option check for next line
-      if (IS_SOFTMODEM_NOS1){
-        nas_config(1, 1, !get_softmodem_params()->nsa ? 2 : 3, ifsuffix_ue);
-        set_qfi_pduid(7, 10);
-      }
-      LOG_I(PDCP, "UE pdcp will use tun interface\n");
-      start_pdcp_tun_ue();
-    } else if(ENB_NAS_USE_TUN) {
+    if(ENB_NAS_USE_TUN) {
       char *ifsuffix_base_s = get_softmodem_params()->nsa ? "gnb" : "enb";
       netlink_init_tun(ifsuffix_base_s, 1, id);
       nas_config(1, 1, 1, ifsuffix_base_s);

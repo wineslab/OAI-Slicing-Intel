@@ -20,20 +20,30 @@
  */
 
 #include "nr_sdap_entity.h"
+#include "nr_sdap.h"
 #include "common/utils/LOG/log.h"
 #include <openair2/LAYER2/nr_pdcp/nr_pdcp_oai_api.h>
 #include <openair3/ocp-gtpu/gtp_itf.h>
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_ue_manager.h"
+#include "openair1/SIMULATION/ETH_TRANSPORT/proto.h"
+#include "executables/softmodem-common.h"
+#include "openair2/RRC/NAS/nas_config.h"
+#include "openair2/COMMON/as_message.h"
+#include "intertask_interface.h"
+#include "openair2/SLICING/ue_slice_manager.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 
 typedef struct {
+  ue_id_t ue_id; /* Used in UE: common UE id for all entities */
   nr_sdap_entity_t *sdap_entity_llist;
 } nr_sdap_entity_info;
 
 static nr_sdap_entity_info sdap_info;
+
+extern nr_nas_msg_snssai_t nas_allowed_nssai[8];
 
 instance_t *N3GTPUInst = NULL;
 
@@ -299,8 +309,7 @@ static void nr_sdap_rx_entity(nr_sdap_entity_t *entity,
      * 5.2.2 Downlink
      * deliver the retrieved SDAP SDU to the upper layer.
      */
-    extern int nas_sock_fd[];
-    int len = write(nas_sock_fd[0], &buf[offset], size-offset);
+    int len = write(entity->pdusession_sock, &buf[offset], size-offset);
     LOG_D(SDAP, "RX Entity len : %d\n", len);
     LOG_D(SDAP, "RX Entity size : %d\n", size);
     LOG_D(SDAP, "RX Entity offset : %d\n", offset);
@@ -447,7 +456,33 @@ nr_sdap_entity_t *new_nr_sdap_entity(int is_gnb, bool has_sdap_rx, bool has_sdap
 
   sdap_entity->next_entity = sdap_info.sdap_entity_llist;
   sdap_info.sdap_entity_llist = sdap_entity;
+
+  if(!is_gnb) {
+    sdap_info.ue_id = ue_id;
+    char *ifname = "oaitun_ue";
+    sdap_entity->pdusession_sock = netlink_init_single_tun(ifname, pdusession_id);
+    //Add --nr-ip-over-lte option check for next line
+    if (IS_SOFTMODEM_NOS1 && is_defaultDRB){
+      nas_config(1, 1, !get_softmodem_params()->nsa ? 2 : 3, ifname);
+      sdap_entity->qfi = 7;
+    }
+    LOG_I(SDAP, "UE SDAP entity of PDU session %d will use tun interface\n", sdap_entity->pdusession_id);
+    sdap_entity->stop_thread = false;
+    start_sdap_tun_ue(sdap_entity);
+  }
+
   return sdap_entity;
+}
+
+void nr_sdap_set_qfi(uint8_t qfi, uint8_t pduid, ue_id_t ue_id, bool is_gnb) {
+  nr_sdap_entity_t *sdap_entity;
+  if (is_gnb) {
+    sdap_entity = nr_sdap_get_entity(ue_id, pduid);
+  } else {
+    sdap_entity = nr_sdap_get_entity(sdap_info.ue_id, pduid);
+  }
+  sdap_entity->qfi = qfi;
+  return;
 }
 
 nr_sdap_entity_t *nr_sdap_get_entity(ue_id_t ue_id, int pdusession_id)
@@ -468,6 +503,16 @@ nr_sdap_entity_t *nr_sdap_get_entity(ue_id_t ue_id, int pdusession_id)
   return NULL;
 }
 
+static void stop_nr_sdap_entity(nr_sdap_entity_t *entity) {
+  entity->stop_thread = true;
+  char dummy = 0;
+  /* dummy write to socket to unblock and terminate thread */
+  if (write(entity->pdusession_sock, &dummy, 1) == -1)
+    LOG_E(SDAP, "SDAP entity thread alread terminated\n");
+  if (pthread_join(entity->pdusession_thread, NULL))
+    LOG_E(SDAP, "Cannot terminate SDAP entity thread\n");
+}
+
 bool nr_sdap_delete_entity(ue_id_t ue_id, int pdusession_id)
 {
   nr_sdap_entity_t *entityPtr = sdap_info.sdap_entity_llist;
@@ -483,6 +528,7 @@ bool nr_sdap_delete_entity(ue_id_t ue_id, int pdusession_id)
 
   if (entityPtr->ue_id == ue_id && entityPtr->pdusession_id == pdusession_id) {
     sdap_info.sdap_entity_llist = sdap_info.sdap_entity_llist->next_entity;
+    stop_nr_sdap_entity(entityPtr);
     free(entityPtr);
     LOG_D(SDAP, "Successfully deleted Entity.\n");
     ret = true;
@@ -496,6 +542,7 @@ bool nr_sdap_delete_entity(ue_id_t ue_id, int pdusession_id)
 
     if (entityPtr->ue_id == ue_id && entityPtr->pdusession_id == pdusession_id) {
       entityPrev->next_entity = entityPtr->next_entity;
+      stop_nr_sdap_entity(entityPtr);
       free(entityPtr);
       LOG_D(SDAP, "Successfully deleted Entity.\n");
       ret = true;
@@ -538,4 +585,139 @@ bool nr_sdap_delete_ue_entities(ue_id_t ue_id)
     }
   }
   return ret;
+}
+
+/* pack entity information to send to client */
+static sdap_entity_info_t get_sdap_entity_info(void) {
+  int num = 0;
+  sdap_entity_info_t info = {0};
+
+  /* first entity */
+  nr_sdap_entity_t *entityPtr;
+  entityPtr = sdap_info.sdap_entity_llist;
+  if (entityPtr) {;
+    info.element[num].sdap_entity_number = (uint8_t)num;
+    info.element[num].pdusession_id = (uint8_t)entityPtr->pdusession_id;
+    num++;
+
+    /* remaining entity */
+    while (entityPtr->next_entity != NULL) {
+      entityPtr = entityPtr->next_entity;
+      info.element[num].sdap_entity_number = (uint8_t)num;
+      info.element[num].pdusession_id = (uint8_t)entityPtr->pdusession_id;
+      num++;
+    }
+  }
+  info.num_elements = (uint16_t)num;
+
+  return info;
+}
+
+/* perform actions based on command received from client */
+static void do_action(uint8_t *buf) {
+  int cmd = buf[0];
+
+  switch(cmd) {
+    case 1:
+      LOG_I(SDAP, "Received request to add new PDU session. Forwarding it to RRC.\n");
+      MessageDef *message_p = itti_alloc_new_message(TASK_NAS_NRUE, 0, NAS_PDU_SESSION_REQ);
+      NAS_PDU_SESSION_REQ(message_p).pdusession_id = buf[1];
+      NAS_PDU_SESSION_REQ(message_p).pdusession_type = 0x91;
+      NAS_PDU_SESSION_REQ(message_p).sst = nas_allowed_nssai[buf[2]].sst;
+      NAS_PDU_SESSION_REQ(message_p).sd = nas_allowed_nssai[buf[2]].sd;
+      itti_send_msg_to_task(TASK_NAS_NRUE, 0, message_p);
+      break;
+
+    case 2:
+      LOG_I(SDAP, "Received request to delete PDU session. Forwarding it to RRC.\n");
+      break;
+
+    default:
+      break;
+  }
+}
+
+void *sdap_pdusession_manager(void*) {
+  int server_fd;
+  struct sockaddr_in address;
+  int addrlen = sizeof(address);
+  char buffer[1024] = {0};
+  const int port = 34000;
+
+  // Create a socket
+  if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+    LOG_E(SDAP, "PDU session manager socket failed");
+    exit(EXIT_FAILURE);
+  }
+
+  // Set socket options
+  int opt = 1;
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+    perror("PDU session manager setsockopt failed");
+    exit(EXIT_FAILURE);
+  }
+
+  // Bind socket to port
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_port = htons(port);
+  if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    perror("PDU session manager bind failed");
+    exit(EXIT_FAILURE);
+  }
+
+  // Listen for incoming connections
+  if (listen(server_fd, 1) < 0) {
+    perror("PDU session manager listen failed");
+    exit(EXIT_FAILURE);
+  }
+  LOG_I(SDAP, "PDU session manager listening on port %d\n", port);
+
+  // Accept incoming connection
+  while (!oai_exit) {
+    int new_socket;
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+      perror("PDU session manager accept failed");
+      exit(EXIT_FAILURE);
+    }
+    LOG_I(SDAP, "PDU session manager connection accepted\n");
+
+    // Wait for data from client
+    while (!oai_exit) {
+      int valread = recv(new_socket, buffer, 1024, 0);
+      if (valread <= 0) {
+        LOG_W(SDAP, "PDU session manager failed to receive data from client\n");
+        break;
+      }
+      do_action((uint8_t*)buffer);
+      //printf("%d bytes received. data: %d %d\n", valread, buffer[0], buffer[1]);
+
+      uint8_t data_to_send[1024];
+      // allowed NSSAI
+      memcpy(data_to_send, nas_allowed_nssai, sizeof(nas_allowed_nssai));
+      // get SDAP entity info
+      sdap_entity_info_t info = get_sdap_entity_info();
+      memcpy(data_to_send+sizeof(nas_allowed_nssai), &info, sizeof(info));
+      // send
+      if (send(new_socket, (void*)data_to_send, 1024, 0) < 0) {
+        LOG_W(SDAP, "PDU session manager failed to send data to client\n");
+        break;
+      }
+      LOG_I(SDAP, "PDU session manager sent info\n");
+
+      // Clear buffer
+      memset(buffer, 0, sizeof(buffer));
+    }
+    // Release connection
+    close(new_socket);
+  }
+  return NULL;
+}
+
+void start_sdap_pdusession_manager(void) {
+  pthread_t t;
+
+  if (pthread_create(&t, NULL, sdap_pdusession_manager, NULL) != 0) {
+    LOG_E(SDAP, "Error creating thread in %s\n", __FUNCTION__);
+  }
 }

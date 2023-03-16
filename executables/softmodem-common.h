@@ -109,6 +109,7 @@ extern "C"
 #define CONFIG_HLP_SYNC_REF      "Sync Reference in Sidelink\n"
 #define CONFIG_HLP_NID1          "Set NID1 value in Sidelink\n"
 #define CONFIG_HLP_NID2          "Set NID2 value in Sidelink\n"
+#define CONFIG_HLP_NETSLICE      "Enable network slicing: Manage PDU sessions from external socket.\n"
 
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            command line parameters common to eNodeB and UE                                                          */
@@ -143,6 +144,7 @@ extern "C"
 #define SYNC_REF            softmodem_params.sync_ref
 #define NID1                softmodem_params.nid1
 #define NID2                softmodem_params.nid2
+#define NET_SLICE           softmodem_params.network_slicing
 
 #define REORDER_THREAD_DISABLE    softmodem_params.reorder_thread_disable
 #define DEFAULT_RFCONFIG_FILE    "/usr/local/etc/syriq/ue.band7.tm1.PRB100.NR40.dat";
@@ -190,6 +192,7 @@ extern int usrp_tx_thread;
   {"disable-stats",         CONFIG_HLP_STATS_DISABLE, PARAMFLAG_BOOL, .iptr=&stats_disabled,                  .defintval=0,             TYPE_INT,    0},  \
   {"nid1",                  CONFIG_HLP_NID1,          0,              .iptr=&NID1,                            .defintval=10,            TYPE_INT,    0},  \
   {"nid2",                  CONFIG_HLP_NID2,          0,              .iptr=&NID2,                            .defintval=1,             TYPE_INT,    0},  \
+  {"net-slice",             CONFIG_HLP_NETSLICE,      PARAMFLAG_BOOL, .iptr=&NET_SLICE,                       .defintval=0,             TYPE_INT,    0},  \
 }
 // clang-format on
 
@@ -232,6 +235,7 @@ extern int usrp_tx_thread;
                {"MONOLITHIC", "PNF", "VNF","UE_STUB_PNF","UE_STUB_OFFNET","STANDALONE_PNF"}, \
                {NFAPI_MONOLITHIC, NFAPI_MODE_PNF, NFAPI_MODE_VNF,NFAPI_UE_STUB_PNF,NFAPI_UE_STUB_OFFNET,NFAPI_MODE_STANDALONE_PNF}, \
                6 } }, \
+    { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
@@ -349,6 +353,7 @@ typedef struct {
   int            sync_ref;
   int            nid1;
   int            nid2;
+  int            network_slicing;
 } softmodem_params_t;
 
 extern uint64_t get_softmodem_optmask(void);

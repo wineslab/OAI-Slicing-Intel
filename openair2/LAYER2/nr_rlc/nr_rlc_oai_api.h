@@ -40,7 +40,7 @@ struct NR_RLC_Config;
 struct NR_LogicalChannelConfig;
 
 void nr_rlc_add_srb(int rnti, int srb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig);
-void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig);
+void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_BearerConfig, const ngap_allowed_NSSAI_t *nssai);
 
 void nr_rlc_remove_ue(int rnti);
 
@@ -63,3 +63,6 @@ void nr_rlc_activate_srb0(int rnti, struct gNB_MAC_INST_s *mac, void *rawUE,
                                      const uint8_t         *sdu,
                                      sdu_size_t             sdu_len,
                                      void                  *rawUE));
+
+ngap_allowed_NSSAI_t mac_rlc_get_nssai(const rnti_t rntiP,
+                                       const logical_chan_id_t channel_idP);

@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include "common/utils/time_stat.h"
+#include "openair2/RRC/NR/rrc_gNB_radio_bearers.h"
 
 #define NR_SDU_MAX 16000   /* max NR PDCP SDU size is 9000, let's take more */
 
@@ -144,6 +145,7 @@ typedef struct nr_rlc_entity_t {
   nr_rlc_statistics_t stats;
   time_average_t *txsdu_avg_time_to_tx;
   int             avg_time_is_on;
+  ngap_allowed_NSSAI_t nssai;
 } nr_rlc_entity_t;
 
 nr_rlc_entity_t *new_nr_rlc_entity_am(
@@ -165,7 +167,8 @@ nr_rlc_entity_t *new_nr_rlc_entity_am(
     int poll_pdu,
     int poll_byte,
     int max_retx_threshold,
-    int sn_field_length);
+    int sn_field_length,
+    const ngap_allowed_NSSAI_t *nssai);
 
 nr_rlc_entity_t *new_nr_rlc_entity_um(
     int rx_maxsize,
@@ -174,7 +177,8 @@ nr_rlc_entity_t *new_nr_rlc_entity_um(
                       char *buf, int size),
     void *deliver_sdu_data,
     int t_reassembly,
-    int sn_field_length);
+    int sn_field_length,
+    const ngap_allowed_NSSAI_t *nssai);
 
 nr_rlc_entity_t *new_nr_rlc_entity_tm(
     int tx_maxsize,
