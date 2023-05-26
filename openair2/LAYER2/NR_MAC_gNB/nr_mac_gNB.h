@@ -410,6 +410,8 @@ typedef struct NR_sched_pdsch {
   // time_domain_allocation is the index of a list of tda
   int time_domain_allocation;
   NR_tda_info_t tda_info;
+  int8_t slice_id_dlsch;
+
 } NR_sched_pdsch_t;
 
 typedef struct NR_UE_harq {
@@ -502,6 +504,13 @@ typedef struct NR_UE_ul_harq {
 } NR_UE_ul_harq_t;
 
 typedef ngap_allowed_NSSAI_t nr_mac_nssai_t;
+
+typedef struct{
+	int8_t s_id;
+	nr_mac_nssai_t nssai_config;
+
+}slice_info_mac_t;
+
 
 /*! \brief scheduling control information set through an API */
 #define MAX_CSI_REPORTS 48
@@ -600,6 +609,13 @@ typedef struct {
   uint8_t dl_lc_ids[NR_MAX_NUM_LCID];
   /// NSSAIs
   nr_mac_nssai_t nssai[NR_MAX_NUM_LCID];
+  slice_info_mac_t sl_config[NR_MAX_NUM_LCID];
+
+  int8_t active_slice[MAX_NUM_PDU_SESSION+1];
+  uint8_t num_slice_d;
+  uint32_t num_total_bytes_slice[MAX_NUM_PDU_SESSION+1];
+  int8_t slice_for_this_sched;
+  int8_t alreadySched;
 
   /// Timer for RRC processing procedures
   uint32_t rrc_processing_timer;
@@ -607,6 +623,14 @@ typedef struct {
   /// sri, ul_ri and tpmi based on SRS
   nr_srs_feedback_t srs_feedback;
 } NR_UE_sched_ctrl_t;
+
+
+typedef struct{
+	int sid;
+	//int dedicated_ratio;
+	int min_ratio;
+	int max_ratio;
+}nr_slice_policy_t;
 
 typedef struct {
   uicc_t *uicc;
@@ -686,6 +710,7 @@ typedef void (*nr_pp_impl_dl)(module_id_t mod_id,
 typedef bool (*nr_pp_impl_ul)(module_id_t mod_id,
                               frame_t frame,
                               sub_frame_t slot);
+
 
 /*! \brief top level eNB MAC structure */
 typedef struct gNB_MAC_INST_s {
@@ -798,6 +823,15 @@ typedef struct gNB_MAC_INST_s {
 
   int16_t frame;
   int16_t slot;
+
+  /*
+   * Slice list assosiated with this gNB
+   *
+   */
+  slice_info_mac_t slice_config_list[MAX_NUM_SLICE];
+  uint8_t dl_num_slice;
+  // slice info
+  nr_slice_policy_t nr_slice_info[MAX_NUM_SLICE+1];
 
 } gNB_MAC_INST;
 

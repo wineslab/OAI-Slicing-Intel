@@ -820,6 +820,9 @@ void RCconfig_NR_L1(void)
   }
 }
 
+
+
+
 void RCconfig_nr_macrlc() {
   int j = 0;
   uint16_t prbbl[275] = {0};
@@ -848,6 +851,19 @@ void RCconfig_nr_macrlc() {
       num_prbbl++;
     }
   }
+
+
+  /* get list of sst/sd from configuration file */
+  paramdef_t SNSSAIParams[] = GNBSNSSAIPARAMS_DESC;
+  paramlist_def_t SNSSAIParamList = {GNB_CONFIG_STRING_SNSSAI_LIST, NULL, 0};
+  char sstr[100];
+  /* TODO: be sure that %d in the line below is at the right place */
+  sprintf(sstr, "%s.[%d].%s.[0]", GNB_CONFIG_STRING_GNB_LIST, 0, GNB_CONFIG_STRING_PLMN_LIST);
+  config_getlist(&SNSSAIParamList, SNSSAIParams, sizeof(SNSSAIParams)/sizeof(paramdef_t), sstr);
+  AssertFatal(SNSSAIParamList.numelt > 0, "no slice configuration found (snssaiList in the configuration file)\n");
+  AssertFatal(SNSSAIParamList.numelt <= 1024, "maximum size for slice support list is 1024, see F1AP 38.473 9.3.1.37\n");
+
+
   paramdef_t MacRLC_Params[] = MACRLCPARAMS_DESC;
   paramlist_def_t MacRLC_ParamList = {CONFIG_STRING_MACRLC_LIST, NULL, 0};
   /* map parameter checking array instances to parameter definition array instances */
@@ -863,6 +879,43 @@ void RCconfig_nr_macrlc() {
     RC.nb_nr_mac_CC = (int *)malloc(RC.nb_nr_macrlc_inst * sizeof(int));
 
     for (j = 0; j < RC.nb_nr_macrlc_inst; j++) {
+
+
+        //RC.nrmac[j]->nssai_config_list
+        RC.nrmac[j]->dl_num_slice = SNSSAIParamList.numelt;
+
+        for (int s = 0; s < SNSSAIParamList.numelt; s++) {
+
+      	RC.nrmac[j]->slice_config_list[s].s_id=s+1;
+          RC.nrmac[j]->slice_config_list[s].nssai_config.sST = *SNSSAIParamList.paramarray[s][GNB_SLICE_SERVICE_TYPE_IDX].uptr;
+          RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag = *SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr != 0xffffff;
+          //asn1cSequenceAdd(slice_support_list->list, F1AP_SliceSupportItem_t, slice);
+          //INT8_TO_OCTET_STRING(sst, &slice->sNSSAI.sST);
+          if (RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag){
+          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[0]  = (*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr & 0x000000ff);
+          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[1]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>8) & 0x000000ff);
+          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[2]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>16) & 0x000000ff);
+          }
+        }
+
+        printf("\n **** Slice configuration at MAC Layer   \n");
+
+        for (int s = 0; s < SNSSAIParamList.numelt; s++) {
+      	 printf("SLice id = %d [ ",RC.nrmac[j]->slice_config_list[s].s_id);
+
+      	 printf("sst = %d, ",RC.nrmac[j]->slice_config_list[s].nssai_config.sST);
+      	 printf("SD falg = %d, ",RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag);
+      	 for(int k=0;k<3;k++){
+      		 printf("sD[%d]=%u ",k,RC.nrmac[j]->slice_config_list[s].nssai_config.sD[k]);
+      	 }
+
+      	 printf("]\n");
+
+        }
+        printf("***** \n ");
+
+
+
       RC.nb_nr_mac_CC[j] = *(MacRLC_ParamList.paramarray[j][MACRLC_CC_IDX].iptr);
       RC.nrmac[j]->pusch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUSCHTARGETSNRX10_IDX].iptr);
       RC.nrmac[j]->pucch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUCCHTARGETSNRX10_IDX].iptr);
@@ -2225,6 +2278,8 @@ void nr_read_config_and_init(void) {
   RCconfig_NR_L1();
   RCconfig_nr_prs();
   RCconfig_nr_macrlc();
+
+  //RCconfig_nr_slice();
 
   LOG_I(PHY, "%s() RC.nb_nr_L1_inst:%d\n", __FUNCTION__, RC.nb_nr_L1_inst);
 

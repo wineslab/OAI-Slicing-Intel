@@ -295,6 +295,32 @@ ngap_allowed_NSSAI_t mac_rlc_get_nssai(const rnti_t rntiP,
   return ret;
 }
 
+//slice_info_mac_t mac_rlc_get_nssai(const rnti_t rntiP,
+//                                       const logical_chan_id_t channel_idP)
+//{
+//  nr_rlc_ue_t *ue;
+//  nr_rlc_entity_t *rb;
+//  //ngap_allowed_NSSAI_t ret;
+//  slice_info_mac_t ret;
+//
+//  nr_rlc_manager_lock(nr_rlc_ue_manager);
+//  ue = nr_rlc_manager_get_ue(nr_rlc_ue_manager, rntiP);
+//
+//  switch (channel_idP) {
+//  case 4 ... NGAP_MAX_DRBS_PER_UE: rb = ue->drb[channel_idP - 4]; break;
+//  default:                         rb = NULL;                     break;
+//  }
+//
+//  if (rb != NULL) {
+//    ret->nssai_config = rb->nssai;
+//  } else {
+//    ret.s_id =0;
+//  }
+//
+//  nr_rlc_manager_unlock(nr_rlc_ue_manager);
+//  return ret;
+//}
+
 
 rlc_op_status_t rlc_data_req     (const protocol_ctxt_t *const ctxt_pP,
 			const srb_flag_t   srb_flagP,

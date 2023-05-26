@@ -243,6 +243,34 @@ void mac_top_init_gNB(ngran_node_t node_type)
         RC.nrmac[i]->pre_processor_dl = nr_init_fr1_dlsch_preprocessor(0);
         RC.nrmac[i]->pre_processor_ul = nr_init_fr1_ulsch_preprocessor(0);
       }
+
+      //SLice info adding
+
+
+           //RC.nrmac[i]->nr_slice_info[0]=(nr_slice_info_t*)malloc(sizeof(nr_slice_info_t));
+           //RC.nrmac[i]->nr_slice_info[1]=(nr_slice_info_t*)malloc(sizeof(nr_slice_info_t));
+
+           RC.nrmac[i]->nr_slice_info[0].sid=0;
+           RC.nrmac[i]->nr_slice_info[0].min_ratio=10;
+           RC.nrmac[i]->nr_slice_info[0].max_ratio=100;
+
+           RC.nrmac[i]->nr_slice_info[1].sid=1;
+           RC.nrmac[i]->nr_slice_info[1].min_ratio=10;
+           RC.nrmac[i]->nr_slice_info[1].max_ratio=100;
+
+           RC.nrmac[i]->nr_slice_info[2].sid=2;
+           RC.nrmac[i]->nr_slice_info[2].min_ratio=80;
+           RC.nrmac[i]->nr_slice_info[2].max_ratio=100;
+
+//           RC.nrmac[i]->nr_slice_info[0].dl.current_rbs=(int*)malloc(20 * sizeof(int));
+//           RC.nrmac[i]->nr_slice_info[1].dl.current_rbs=(int*)malloc(20 * sizeof(int));
+//           RC.nrmac[i]->nr_slice_info[2].dl.current_rbs=(int*)malloc(20 * sizeof(int));
+//
+//     	  memset(RC.nrmac[i]->nr_slice_info[0].dl.current_rbs, 0, 20*sizeof(int));
+//     	  memset(RC.nrmac[i]->nr_slice_info[1].dl.current_rbs, 0, 20*sizeof(int));
+//     	  memset(RC.nrmac[i]->nr_slice_info[2].dl.current_rbs, 0, 20*sizeof(int));
+
+
       if (!IS_SOFTMODEM_NOSTATS_BIT)
          threadCreate(&RC.nrmac[i]->stats_thread, nrmac_stats_thread, (void*)RC.nrmac[i], "MAC_STATS", -1,     sched_get_priority_min(SCHED_OAI)+1 );
       mac_rrc_init(RC.nrmac[i], node_type);
