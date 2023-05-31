@@ -881,38 +881,48 @@ void RCconfig_nr_macrlc() {
     for (j = 0; j < RC.nb_nr_macrlc_inst; j++) {
 
 
-        //RC.nrmac[j]->nssai_config_list
+        //Initializing slicing related information from nssai list in the gNB config file
+    	//ToDO: This should be configured by CU to DU in future
+    	//ToDo: sanity check while reading the config and storing. Ex: duplications should be deleted
         RC.nrmac[j]->dl_num_slice = SNSSAIParamList.numelt;
 
         for (int s = 0; s < SNSSAIParamList.numelt; s++) {
+        	RC.nrmac[j]->slice_config_list[s].s_id=s+1; // s_id = 0 is kept for control traffic/default slice
+        	RC.nrmac[j]->slice_config_list[s].nssai_config.sST = *SNSSAIParamList.paramarray[s][GNB_SLICE_SERVICE_TYPE_IDX].uptr;
+        	RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag = *SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr != 0xffffff;
 
-      	RC.nrmac[j]->slice_config_list[s].s_id=s+1;
-          RC.nrmac[j]->slice_config_list[s].nssai_config.sST = *SNSSAIParamList.paramarray[s][GNB_SLICE_SERVICE_TYPE_IDX].uptr;
-          RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag = *SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr != 0xffffff;
-          //asn1cSequenceAdd(slice_support_list->list, F1AP_SliceSupportItem_t, slice);
-          //INT8_TO_OCTET_STRING(sst, &slice->sNSSAI.sST);
-          if (RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag){
-          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[0]  = (*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr & 0x000000ff);
-          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[1]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>8) & 0x000000ff);
-          	RC.nrmac[j]->slice_config_list[s].nssai_config.sD[2]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>16) & 0x000000ff);
-          }
+        	if (RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag){
+        		RC.nrmac[j]->slice_config_list[s].nssai_config.sD[0]  = (*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr & 0x000000ff);
+        		RC.nrmac[j]->slice_config_list[s].nssai_config.sD[1]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>8) & 0x000000ff);
+        		RC.nrmac[j]->slice_config_list[s].nssai_config.sD[2]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>16) & 0x000000ff);
+        	}
         }
 
-        printf("\n **** Slice configuration at MAC Layer   \n");
+        LOG_I(NR_MAC,
+              "Configured slices PUSCH Target %d, PUCCH Target %d, PUCCH Failure %d, PUSCH Failure %d\n",
+              RC.nrmac[j]->pusch_target_snrx10,
+              RC.nrmac[j]->pucch_target_snrx10,
+              RC.nrmac[j]->pucch_failure_thres,
+              RC.nrmac[j]->pusch_failure_thres);
+
+
+        printf("\n**** Configured slices at MAC \n");
 
         for (int s = 0; s < SNSSAIParamList.numelt; s++) {
-      	 printf("SLice id = %d [ ",RC.nrmac[j]->slice_config_list[s].s_id);
+      	 printf("Slice id = %d [ ",RC.nrmac[j]->slice_config_list[s].s_id);
 
       	 printf("sst = %d, ",RC.nrmac[j]->slice_config_list[s].nssai_config.sST);
       	 printf("SD falg = %d, ",RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag);
-      	 for(int k=0;k<3;k++){
-      		 printf("sD[%d]=%u ",k,RC.nrmac[j]->slice_config_list[s].nssai_config.sD[k]);
+      	 if(RC.nrmac[j]->slice_config_list[s].nssai_config.sD_flag){
+          	 for(int k=0;k<3;k++){
+          		 printf("sD[%d]=%u ",k,RC.nrmac[j]->slice_config_list[s].nssai_config.sD[k]);
+          	 }
       	 }
 
       	 printf("]\n");
 
         }
-        printf("***** \n ");
+        printf("**** \n ");
 
 
 
