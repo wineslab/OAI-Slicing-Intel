@@ -246,21 +246,30 @@ void mac_top_init_gNB(ngran_node_t node_type)
 
       //SLice info adding
 
+      RC.nrmac[i]->nr_slice[0].conf.id = 0;
+      RC.nrmac[i]->nr_slice[0].policy.min_ratio=5;
+      RC.nrmac[i]->nr_slice[0].policy.max_ratio=100;
 
-           //RC.nrmac[i]->nr_slice_info[0]=(nr_slice_info_t*)malloc(sizeof(nr_slice_info_t));
-           //RC.nrmac[i]->nr_slice_info[1]=(nr_slice_info_t*)malloc(sizeof(nr_slice_info_t));
+      RC.nrmac[i]->nr_slice[1].conf.id = 1;
+      RC.nrmac[i]->nr_slice[1].policy.min_ratio=50;
+      RC.nrmac[i]->nr_slice[1].policy.max_ratio=100;
 
-           RC.nrmac[i]->nr_slice_info[0].sid=0;
-           RC.nrmac[i]->nr_slice_info[0].min_ratio=10;
-           RC.nrmac[i]->nr_slice_info[0].max_ratio=100;
+      RC.nrmac[i]->nr_slice[2].conf.id = 2;
+      RC.nrmac[i]->nr_slice[2].policy.min_ratio=45;
+      RC.nrmac[i]->nr_slice[2].policy.max_ratio=100;
 
-           RC.nrmac[i]->nr_slice_info[1].sid=1;
-           RC.nrmac[i]->nr_slice_info[1].min_ratio=10;
-           RC.nrmac[i]->nr_slice_info[1].max_ratio=100;
 
-           RC.nrmac[i]->nr_slice_info[2].sid=2;
-           RC.nrmac[i]->nr_slice_info[2].min_ratio=80;
-           RC.nrmac[i]->nr_slice_info[2].max_ratio=100;
+//           RC.nrmac[i]->nr_slice_info[0].sid=0;
+//           RC.nrmac[i]->nr_slice_info[0].min_ratio=10;
+//           RC.nrmac[i]->nr_slice_info[0].max_ratio=100;
+//
+//           RC.nrmac[i]->nr_slice_info[1].sid=1;
+//           RC.nrmac[i]->nr_slice_info[1].min_ratio=10;
+//           RC.nrmac[i]->nr_slice_info[1].max_ratio=100;
+//
+//           RC.nrmac[i]->nr_slice_info[2].sid=2;
+//           RC.nrmac[i]->nr_slice_info[2].min_ratio=80;
+//           RC.nrmac[i]->nr_slice_info[2].max_ratio=100;
 
 //           RC.nrmac[i]->nr_slice_info[0].dl.current_rbs=(int*)malloc(20 * sizeof(int));
 //           RC.nrmac[i]->nr_slice_info[1].dl.current_rbs=(int*)malloc(20 * sizeof(int));

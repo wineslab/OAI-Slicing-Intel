@@ -332,6 +332,8 @@ void nr_store_dl_slice_info(module_id_t module_id) {
   UE_iterator(RC.nrmac[module_id]->UE_info.list, UE) {
 	// Loop over UEs
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
+
+
     for (int i = 0; i < sched_ctrl->dl_lc_num; ++i) {
       const int lcid = sched_ctrl->dl_lc_ids[i];
       const uint16_t rnti = UE->rnti;
@@ -339,63 +341,59 @@ void nr_store_dl_slice_info(module_id_t module_id) {
         continue;
       }
 
-      sched_ctrl->sl_config[lcid].nssai_config = mac_rlc_get_nssai(rnti,
+      sched_ctrl->dl_sl_info[lcid].nssai_config = mac_rlc_get_nssai(rnti,
     		  	  	  	  	  	  	  	  	  	  	  	  	  	  lcid);
+      sched_ctrl->dl_sl_info[lcid].id = 0;
 
-      for(int j=0; j<RC.nrmac[module_id]->dl_num_slice; j++){
-			if ( (RC.nrmac[module_id]->slice_config_list[j].nssai_config.sST == sched_ctrl->sl_config[lcid].nssai_config.sST) &&
-					(RC.nrmac[module_id]->slice_config_list[j].nssai_config.sD_flag == sched_ctrl->sl_config[lcid].nssai_config.sD_flag) &&
-					(RC.nrmac[module_id]->slice_config_list[j].nssai_config.sD[0] == sched_ctrl->sl_config[lcid].nssai_config.sD[0]) &&
-					(RC.nrmac[module_id]->slice_config_list[j].nssai_config.sD[1] == sched_ctrl->sl_config[lcid].nssai_config.sD[1]) &&
-					(RC.nrmac[module_id]->slice_config_list[j].nssai_config.sD[2] == sched_ctrl->sl_config[lcid].nssai_config.sD[2])
+      //printf("lcid %d  sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag %u sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2] = %u \n",lcid,sched_ctrl->dl_sl_info[lcid].nssai_config.sST,
+    		 // sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag,sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2]);
+
+      for(int j=1; j < RC.nrmac[module_id]->dl_num_slice; j++){
+    	  //printf("****  j = %d RC.nrmac[j]->dl_slice_info[j].nssai_config.sST %d sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u\n",j,
+
+			if ( (RC.nrmac[module_id]->dl_slice_info[j].nssai_config.sST == sched_ctrl->dl_sl_info[lcid].nssai_config.sST) &&
+					(RC.nrmac[module_id]->dl_slice_info[j].nssai_config.sD_flag == sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag) &&
+					(RC.nrmac[module_id]->dl_slice_info[j].nssai_config.sD[0] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[0]) &&
+					(RC.nrmac[module_id]->dl_slice_info[j].nssai_config.sD[1] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[1]) &&
+					(RC.nrmac[module_id]->dl_slice_info[j].nssai_config.sD[2] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2])
 					){
-				sched_ctrl->sl_config[lcid].s_id = RC.nrmac[module_id]->slice_config_list[j].s_id;
+				//printf(" sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u \n",sched_ctrl->dl_sl_info[lcid].nssai_config.sST);
+				sched_ctrl->dl_sl_info[lcid].id = RC.nrmac[module_id]->dl_slice_info[j].id;
 			}
       }
-    }
-    // We have nssai struct for all lcid; Now need to make list of active slices at each UE
 
+
+    }
+
+    // We have slice<-->nssai struct for all lcid: Make an list of active slices at each UE
+    // Initializing slice id for all PDU sessions
 	for (int l = 0; l <= MAX_NUM_PDU_SESSION; l++){
 		sched_ctrl->active_slice[l]= -1;
 	}
-
-	if (sched_ctrl->ul_failure==1)
-		continue;
-
-	// default slice is 0. For SRB traffic
-	sched_ctrl->active_slice[0]=0;
+	sched_ctrl->active_slice[0]=0; 	// slice id = 0 is used when no PDU session is not yet established
 	sched_ctrl->num_slice_d=1;
 
 
-	int exist;
+    int counts[256];
+    for (int i = 0; i < 256; ++i) {
+    	counts[i] = 0;
+    }
+    for (int i = 0; i < sched_ctrl->dl_lc_num; ++i) {
+    	const int lcid = sched_ctrl->dl_lc_ids[i];
+    	if(sched_ctrl->dl_sl_info[lcid].id) counts[(unsigned)(sched_ctrl->dl_sl_info[lcid].id)]++;
+    }
 
-	for (int i = 0; i < sched_ctrl->dl_lc_num; ++i) {
-		const int lcid = sched_ctrl->dl_lc_ids[i];
-		for(int j=0; j<RC.nrmac[module_id]->dl_num_slice; j++){
-
-			if	(sched_ctrl->sl_config[lcid].s_id == RC.nrmac[module_id]->slice_config_list[j].s_id){
-
-				exist = 0;
-				for (int k=1;k <= MAX_NUM_PDU_SESSION;k++){
-					if ( RC.nrmac[module_id]->slice_config_list[j].s_id == sched_ctrl->active_slice[k] ){
-						exist =1; break;
-					}
-				}
-
-				if(exist == 0) {
-					for (int k=1;k <= MAX_NUM_PDU_SESSION;k++){
-						if ( sched_ctrl->active_slice[k]== -1) {
-							sched_ctrl->active_slice[k]=RC.nrmac[module_id]->slice_config_list[j].s_id;
-							//printf("\n sched_ctrl->active_slice[k] %d \n ",sched_ctrl->active_slice[k]);
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
+    int k=1;
+    for (int i = 0; i < 256; ++i) {
+    	//printf(" counts[%d] = %d",i,counts[i]);
+    	if (counts[i]){
+    		sched_ctrl->active_slice[k] = i;
+    		k++;
+    	}
+    }
 
 	for (int k=1;k <= MAX_NUM_PDU_SESSION;k++){
+		//printf (" k =%d, sched_ctrl->active_slice[k] %d",k,sched_ctrl->active_slice[k]);
 		if(sched_ctrl->active_slice[k] > 0) sched_ctrl->num_slice_d++;
 	}
 
@@ -503,10 +501,10 @@ void nr_store_dlsch_buffer_slice(module_id_t module_id,
       sched_ctrl->dl_pdus_total += sched_ctrl->rlc_status[lcid].pdus_in_buffer;
       sched_ctrl->num_total_bytes += sched_ctrl->rlc_status[lcid].bytes_in_buffer;
 
-      for (int j=0;j< sched_ctrl->num_slice_d;j++){
+      for (int j=0;j < sched_ctrl->num_slice_d;j++){
 		 // printf("sched_ctrl->dl_lc_sts[i].pduSessionatMAC  %d sched_ctrl->slice_id_list[j] %d \n",
 				 // sched_ctrl->dl_lc_sts[i].pduSessionatMAC,sched_ctrl->slice_id_list[j]);
-    	  if (sched_ctrl->sl_config[lcid].s_id == sched_ctrl->active_slice[j]){
+    	  if (sched_ctrl->dl_sl_info[lcid].id == sched_ctrl->active_slice[j]){
     		  sched_ctrl->num_total_bytes_slice[j] += sched_ctrl->rlc_status[lcid].bytes_in_buffer;break;
     	  }
       }
@@ -578,7 +576,7 @@ void nr_slice_preprocess(module_id_t module_id,
 				break;
 
 			default:
-				AssertFatal(1==0,"Not ready for more than 2 slices \n");
+				AssertFatal(1==0,"slice scheduling not ready for more than 2 slices \n");
 		}
 	 			// printf ("Selected slice %d \n", sched_ctrl_s-> slice_for_this_sched );
 
@@ -1158,7 +1156,7 @@ void slice_prb_estimate(module_id_t module_id,
 	gNB_MAC_INST *mac = RC.nrmac[module_id];
 	NR_ServingCellConfigCommon_t *scc=mac->common_channels[0].ServingCellConfigCommon;
 	int  remainUEs_s;
-	uint8_t num_slice = mac->dl_num_slice + 1;
+	uint8_t num_slice = mac->dl_num_slice ;
 	int max_num_ue_slice = max_num_ue;
 	int n_rb_sched_s;
 	int n_rb_sched_s_array[num_slice];
@@ -1182,10 +1180,12 @@ void slice_prb_estimate(module_id_t module_id,
 	  for(int s1=0; s1 < num_slice; s1++){
 		  n_rb_allowed[s1] = n_rb_sched;
 		  for(int s2=0; s2 < num_slice; s2++){
-			  if(s1 != s2) n_rb_allowed[s1] -= ((n_rb_sched* mac->nr_slice_info[s2].min_ratio)/100);
+			  if(s1 != s2) n_rb_allowed[s1] -= ((n_rb_sched* mac->nr_slice[s2].policy.min_ratio)/100);
 		  }
 		  //printf(" n_rb_allowed[%d] = %d",s1,n_rb_allowed[s1]);
 	  }
+
+
 
 	  for(int sid=0;sid < num_slice ;sid++){
 
@@ -1373,7 +1373,7 @@ void pf_dl_slice_v2(module_id_t module_id,
 
   int CC_id = 0;
   int  remainUEs_s,curUE_s;
-  uint8_t num_slice = mac->dl_num_slice + 1;
+  uint8_t num_slice = mac->dl_num_slice ;
 
   int max_num_ue_slice = max_num_ue;
   int n_rb_sched_tot=n_rb_sched;
@@ -1449,9 +1449,12 @@ void pf_dl_slice_v2(module_id_t module_id,
  // printf("\n n_rb_sched_init = %d\n",n_rb_sched_init);
   for(int s1=0; s1 < num_slice; s1++){
 	  n_rb_sched_s_array[s1]=0;
-	  min_rb_s[s1] = (n_rb_sched_init * mac->nr_slice_info[s1].min_ratio)/100;
+	  min_rb_s[s1] = (n_rb_sched_init * mac->nr_slice[s1].policy.min_ratio)/100;
 	 // printf(" min_rb_s[%d] = %d",s1,min_rb_s[s1]);
   }
+
+
+
  // printf("\n");
 
   /*
@@ -1484,8 +1487,8 @@ void pf_dl_slice_v2(module_id_t module_id,
 	 // printf(" \n max_rb_s[%d] = %d \n",sid,max_rb_s);
 	  //printf(" mac->nr_slice_info[sid].max_ratio)/100 \n",((n_rb_sched_init * mac->nr_slice_info[sid].max_ratio)/100));
 
-	  if( max_rb_s > ((n_rb_sched_init * mac->nr_slice_info[sid].max_ratio)/100) ){
-		  max_rb_s = (n_rb_sched_init * mac->nr_slice_info[sid].max_ratio)/100;
+	  if( max_rb_s > ((n_rb_sched_init * mac->nr_slice[s_i].policy.max_ratio)/100) ){
+		  max_rb_s = (n_rb_sched_init * mac->nr_slice[s_i].policy.max_ratio)/100;
 
 	  }
 
@@ -2055,7 +2058,7 @@ void nr_fr1_dlsch_preprocessor(module_id_t module_id, frame_t frame, sub_frame_t
   int average_agg_level = 4; // TODO find a better estimation
   int max_sched_ues = bw / (average_agg_level * NR_NB_REG_PER_CCE);
 
-  uint8_t num_slice = RC.nrmac[module_id]->dl_num_slice + 1;
+  uint8_t num_slice = RC.nrmac[module_id]->dl_num_slice ;
   slice_schd_t s_array[num_slice];
 
   /* proportional fair scheduling algorithm */
@@ -2467,7 +2470,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
 			 * If a lcid doesn't belong to the selected slice for transmission skip it
 			 *
 			 */
-			if ( lcid > 3 && sched_ctrl->sl_config[lcid].s_id != sched_ctrl-> slice_for_this_sched){
+			if ( lcid > 3 && sched_ctrl->dl_sl_info[lcid].id != sched_ctrl-> slice_for_this_sched){
             	  //printf("** Skipping this lcid %d as it belongs to Slice %d wheras scheduled slice is %d \n"
             		//	  ,lcid,sched_ctrl->sl_config[lcid].s_id,sched_ctrl-> slice_for_this_sched);
 			  continue;

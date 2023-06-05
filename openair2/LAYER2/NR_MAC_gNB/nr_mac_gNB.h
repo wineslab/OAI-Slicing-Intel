@@ -503,12 +503,35 @@ typedef struct NR_UE_ul_harq {
   NR_sched_pusch_t sched_pusch;
 } NR_UE_ul_harq_t;
 
+
 typedef ngap_allowed_NSSAI_t nr_mac_nssai_t;
+
+typedef struct nr_slice_policy_s{
+	int sid;
+	//int dedicated_ratio;
+	int min_ratio;
+	int max_ratio;
+}nr_slice_policy_t;
+
+
+typedef struct nr_mac_slice_s{
+	int8_t id;
+	nr_mac_nssai_t nssai_config;
+}nr_mac_slice_t;
+
+
+typedef struct nr_slice_s {
+  /// id used internally: -1 => not a valid slice,0 => default slice for SRB
+  nr_mac_slice_t conf;
+  nr_slice_policy_t policy;
+} nr_slice_t;
+
+
+
 
 typedef struct{
 	int8_t s_id;
 	nr_mac_nssai_t nssai_config;
-
 }slice_info_mac_t;
 
 
@@ -608,8 +631,11 @@ typedef struct {
   /// order in which DLSCH scheduler should allocate LCs
   uint8_t dl_lc_ids[NR_MAX_NUM_LCID];
   /// NSSAIs
-  nr_mac_nssai_t nssai[NR_MAX_NUM_LCID];
-  slice_info_mac_t sl_config[NR_MAX_NUM_LCID];
+  //nr_mac_nssai_t nssai[NR_MAX_NUM_LCID];
+  //slice_info_mac_t sl_config[NR_MAX_NUM_LCID];
+
+  nr_mac_slice_t dl_sl_info[NR_MAX_NUM_LCID];
+
 
   int8_t active_slice[MAX_NUM_PDU_SESSION+1];
   uint8_t num_slice_d;
@@ -625,12 +651,7 @@ typedef struct {
 } NR_UE_sched_ctrl_t;
 
 
-typedef struct{
-	int sid;
-	//int dedicated_ratio;
-	int min_ratio;
-	int max_ratio;
-}nr_slice_policy_t;
+
 
 typedef struct {
   uicc_t *uicc;
@@ -831,7 +852,11 @@ typedef struct gNB_MAC_INST_s {
   slice_info_mac_t slice_config_list[MAX_NUM_SLICE];
   uint8_t dl_num_slice;
   // slice info
-  nr_slice_policy_t nr_slice_info[MAX_NUM_SLICE+1];
+  //nr_slice_policy_t nr_slice_info[MAX_NUM_SLICE+1];
+
+  nr_slice_t nr_slice[MAX_NUM_SLICE+1];
+
+  nr_mac_slice_t dl_slice_info[MAX_NUM_SLICE+1];
 
 } gNB_MAC_INST;
 
