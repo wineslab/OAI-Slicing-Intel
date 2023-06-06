@@ -521,9 +521,10 @@ typedef struct nr_mac_slice_s{
 
 
 typedef struct nr_slice_s {
-  /// id used internally: -1 => not a valid slice,0 => default slice for SRB
-  nr_mac_slice_t conf;
-  nr_slice_policy_t policy;
+	/// id used internally: -1 => not a valid slice,0 => default slice for SRB
+	int8_t s_id;
+	nr_mac_slice_t conf;
+	nr_slice_policy_t policy;
 } nr_slice_t;
 
 
@@ -533,6 +534,14 @@ typedef struct{
 	int8_t s_id;
 	nr_mac_nssai_t nssai_config;
 }slice_info_mac_t;
+
+
+typedef struct {
+  /// scheduling control info
+  // last element always NULL
+  pthread_mutex_t mutex;
+  nr_slice_t *list[MAX_NUM_SLICE+1];
+} NR_Slices_t;
 
 
 /*! \brief scheduling control information set through an API */
@@ -857,6 +866,8 @@ typedef struct gNB_MAC_INST_s {
   nr_slice_t nr_slice[MAX_NUM_SLICE+1];
 
   nr_mac_slice_t dl_slice_info[MAX_NUM_SLICE+1];
+
+  NR_Slices_t SLI_info;
 
 } gNB_MAC_INST;
 

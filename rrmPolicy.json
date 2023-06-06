@@ -1,0 +1,20 @@
+
+{
+	"rrmPolicyRatio" : [
+		{
+		"sST":1,
+		"sD_flag":1,
+		"sD":1,
+		"min_ratio":70,
+		"max_ratio":100,
+		},
+		{
+		"sST":1,
+		"sD_flag":1,
+		"sD":2,
+		"min_ratio":20,
+		"max_ratio":100
+		}
+	]
+     }
+
