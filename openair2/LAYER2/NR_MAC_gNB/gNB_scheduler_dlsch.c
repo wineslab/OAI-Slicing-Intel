@@ -671,20 +671,20 @@ void nr_slice_preprocess(module_id_t module_id,
 
 	}
 
-	NR_UE_sched_ctrl_t *sched_ctrl ;
-	printf("Selected slices =[ ");
-	UE_iterator(UE_info->list, UE) {
-
-		sched_ctrl = &UE->UE_sched_ctrl;
-		uint32_t bytes = 0;
-
-		for(int k=0;k<sched_ctrl->num_slice_d;k++){
-			if (sched_ctrl-> slice_for_this_sched == sched_ctrl->avail_slice_list[k].id) bytes = sched_ctrl->avail_slice_list[k].bytes;
-		}
-
-		printf ("(UE %x slice %d bytes %u) ", UE->rnti,sched_ctrl-> slice_for_this_sched,bytes );
-	}
-	printf("]\n");
+//	NR_UE_sched_ctrl_t *sched_ctrl ;
+//	printf("Selected slices =[ ");
+//	UE_iterator(UE_info->list, UE) {
+//
+//		sched_ctrl = &UE->UE_sched_ctrl;
+//		uint32_t bytes = 0;
+//
+//		for(int k=0;k<sched_ctrl->num_slice_d;k++){
+//			if (sched_ctrl-> slice_for_this_sched == sched_ctrl->avail_slice_list[k].id) bytes = sched_ctrl->avail_slice_list[k].bytes;
+//		}
+//
+//		printf ("(UE %x slice %d bytes %u) ", UE->rnti,sched_ctrl-> slice_for_this_sched,bytes );
+//	}
+//	printf("]\n");
 }
 
 
@@ -1025,9 +1025,9 @@ bool allocate_dl_retransmission_slice(module_id_t module_id,
   /* retransmissions: directly allocate */
   *n_rb_sched -= sched_ctrl->sched_pdsch.rbSize;
 
-
-  printf("Retransmission for UE %04x, HARQ %d Slice = %d \n",UE->rnti,
- 		  current_harq_pid,sched_ctrl-> slice_for_this_sched);
+//
+//  printf("Retransmission for UE %04x, HARQ %d Slice = %d \n",UE->rnti,
+// 		  current_harq_pid,sched_ctrl-> slice_for_this_sched);
 
 
   for (int rb = 0; rb < sched_ctrl->sched_pdsch.rbSize; rb++)
@@ -1047,6 +1047,8 @@ typedef struct UEsched_s {
 typedef struct slice_schd_s{
     int sid;
     int prb;
+    int allowed_num_prbs;
+    int min_prbs;
 }slice_schd_t;
 
 static int comparator(const void *p, const void *q) {
@@ -1057,7 +1059,6 @@ int compare_s (const void * a, const void * b)
 {
     return ( ((slice_schd_t*)a)->prb - ((slice_schd_t*)b)->prb );
 }
-
 
 void slice_prb_estimate(module_id_t module_id,
         frame_t frame,
@@ -1077,8 +1078,6 @@ void slice_prb_estimate(module_id_t module_id,
 	uint8_t num_slice = mac->dl_num_slice ;
 	int max_num_ue_slice = max_num_ue;
 	int n_rb_sched_s;
-	int n_rb_sched_s_array[num_slice];
-	int n_rb_allowed[num_slice];
 	int n_rb_max_s;
 	uint16_t rballoc_mask_copy[bwpSize];
 
@@ -1087,17 +1086,24 @@ void slice_prb_estimate(module_id_t module_id,
 	for (int i = 0; i < bwpSize; i++) {
 	  rballoc_mask_copy[i] = rballoc_mask[i];
 	}
-	// Allowed PRBs based on min_ratio policy
+
+	// Init slice list
 	for(int s1=0; s1 < num_slice; s1++){
-	  n_rb_allowed[s1] = n_rb_sched;
+
+		s_array[s1].sid= s1;
+		s_array[s1].prb= 0;
+		s_array[s1].allowed_num_prbs = n_rb_sched;
+		s_array[s1].min_prbs = (n_rb_sched* SLI_info->list[s1]->policy.min_ratio )/100;
+
 	  for(int s2=0; s2 < num_slice; s2++){
-		  if(s1 != s2) n_rb_allowed[s1] -= ((n_rb_sched* SLI_info->list[s2]->policy.min_ratio )/100);
+		  if((s_array[s1].sid) != s2) s_array[s1].allowed_num_prbs -= ((n_rb_sched* SLI_info->list[s2]->policy.min_ratio )/100);
 	  }
 	}
-
 	  // Loop over slices
 	for(int s_i=0;s_i < num_slice ;s_i++){
 
+
+		int sl_id = s_array[s_i].sid ; // slice id for this iteration
 
 		// For Each slice initialize the same mask
 		for (int i = 0; i < bwpSize; i++) {
@@ -1105,9 +1111,7 @@ void slice_prb_estimate(module_id_t module_id,
 		}
 
 		remainUEs_s= max_num_ue_slice;
-		n_rb_sched_s_array[s_i]= 0;
-		s_array[s_i].sid= s_i;
-		s_array[s_i].prb= 0;
+
 		n_rb_sched_s = 0;
 		n_rb_max_s = n_rb_sched;
 		const int min_rbSize = 5;
@@ -1127,24 +1131,28 @@ void slice_prb_estimate(module_id_t module_id,
 			if (sched_ctrl->ul_failure==1)
 				continue;
 
-			if ( sched_ctrl-> slice_for_this_sched != sched_ctrl->avail_slice_list[s_i].id){
+			if ( sched_ctrl-> slice_for_this_sched != sl_id){
 			//printf("\n In pf_dl sid = %d for slice = %d, but selected slice = %d ** \n",sid,sched_ctrl->active_slice[sid],
 			//sched_ctrl-> slice_for_this_sched);
 			continue;
 			}else{
-				printf(" sched_ctrl-> slice_for_this_sched %d  sched_ctrl->avail_slice_list[s_i].id) %d \n",sched_ctrl-> slice_for_this_sched,sched_ctrl->avail_slice_list[s_i].id);
+				//printf(" sched_ctrl-> slice_for_this_sched %d  sl_id) %d \n",sched_ctrl-> slice_for_this_sched,sl_id);
 			}
 
 			if(n_rb_max_s < min_rbSize){
-				printf("\n n_rb_max_s = %d \n",n_rb_max_s);
+				//printf("\n n_rb_max_s = %d \n",n_rb_max_s);
 				continue;
 			}
 
-			uint32_t bytes =sched_ctrl->avail_slice_list[s_i].bytes;
+			uint32_t bytes = 0;
+			for(int k=0;k<sched_ctrl->num_slice_d;k++ ){
+				if (sched_ctrl->avail_slice_list[k].id == sl_id) bytes = sched_ctrl->avail_slice_list[k].bytes;
+			}
+
 
 			/* Check DL buffer and skip this UE if no bytes and no TA necessary */
-			if (sched_ctrl->avail_slice_list[s_i].bytes== 0 && frame != (sched_ctrl->ta_frame + 10) % 1024){
-				printf("Empty buffer  \n");
+			if (bytes== 0 && frame != (sched_ctrl->ta_frame + 10) % 1024){
+				//printf("Empty buffer  \n");
 				continue;
 			}
 
@@ -1236,7 +1244,7 @@ void slice_prb_estimate(module_id_t module_id,
 
 		}
 
-		n_rb_sched_s_array[s_i]= n_rb_sched_s;
+
 		s_array[s_i].prb = n_rb_sched_s;
 	}
 	// Copy back the initial rballoc mask
@@ -1252,13 +1260,14 @@ void slice_prb_estimate(module_id_t module_id,
 	qsort (s_array, num_slice, sizeof(slice_schd_t), compare_s);
 
 
-	  printf ("Slice order = [");
-	  for(int s1=0; s1 < num_slice; s1++){
-		  printf ("%d (%d) ",s_array[s1].prb, s_array[s1].sid);
-
-	  }
-	  printf ("]\n");
+//	  printf ("Slice order = [");
+//	  for(int s1=0; s1 < num_slice; s1++){
+//		  printf ("%d (%d) ",s_array[s1].prb, s_array[s1].sid);
+//
+//	  }
+//	  printf ("]\n");
 }
+
 
 
 void pf_dl_slice(module_id_t module_id,
@@ -1285,8 +1294,6 @@ void pf_dl_slice(module_id_t module_id,
   int n_rb_sched_s;
   int n_rb_remain_s;
   int n_rb_sched_s_tot=0;
-  int n_rb_sched_s_array[num_slice];
-  int min_rb_s[num_slice];
   int max_rb_s;
 
   int  remainUEs=max_num_ue;
@@ -1318,7 +1325,7 @@ void pf_dl_slice(module_id_t module_id,
 
 	if (sched_pdsch->dl_harq_pid >= 0) {
 
-		printf("Looking to Retransmit for UE %04x  for HARQ %d slot =%d \n",UE_p->rnti,sched_pdsch->dl_harq_pid, slot);
+		//printf("Looking to Retransmit for UE %04x  for HARQ %d slot =%d \n",UE_p->rnti,sched_pdsch->dl_harq_pid, slot);
 		bool r = allocate_dl_retransmission_slice(module_id, frame, slot, rballoc_mask, &n_rb_sched, UE_p, sched_pdsch->dl_harq_pid);
 
 		// Set UE already scheduled so that it wont be scheduled with fresh tx in next round
@@ -1343,8 +1350,13 @@ void pf_dl_slice(module_id_t module_id,
  */
   int n_rb_sched_init = n_rb_sched;
   for(int s1=0; s1 < num_slice; s1++){
-	  n_rb_sched_s_array[s1]=0;
-	  min_rb_s[s1] = (n_rb_sched_init * SLI_info->list[s1]->policy.min_ratio )/100;
+
+	  if(s_array[s1].sid == s1) {
+		  s_array[s1].min_prbs= (n_rb_sched_init * SLI_info->list[s1]->policy.min_ratio )/100;
+	  }
+
+	  //n_rb_sched_s_array[s1]=0;
+	  //s_array[s1].min_prbs= (n_rb_sched_init * SLI_info->list[s1]->policy.min_ratio )/100;
   }
 
   /*
@@ -1358,19 +1370,26 @@ void pf_dl_slice(module_id_t module_id,
 
 	  int sid = s_array[s_i].sid;
 
+
 	  UEsched_t UE_sched_slice[MAX_MOBILES_PER_GNB] = {0};
 	  curUE_s= 0;
 
 	  // PRB ratios update based on PRBs used by previous slice iteration
 	  max_rb_s = n_rb_sched_init;
-	  for(int s1=0;s1 < num_slice ;s1++){
-		  if(s1 != sid) max_rb_s -= min_rb_s[s1];
-	  }
+	  for(int j=0;j< num_slice ;j++){
 
-	  if(max_rb_s > ((n_rb_sched_init * SLI_info->list[sid]->policy.max_ratio)/100)){
-		  max_rb_s = (n_rb_sched_init * SLI_info->list[sid]->policy.max_ratio)/100;
+		  if(s_array[s_i].sid != s_array[j].sid) max_rb_s -= s_array[j].min_prbs;
 
 	  }
+
+	  for(int j=0;j< num_slice ;j++){
+		  if (SLI_info->list[j]->s_id == sid){
+			  if(max_rb_s > ((n_rb_sched_init * SLI_info->list[j]->policy.max_ratio)/100)){
+				  max_rb_s = (n_rb_sched_init * SLI_info->list[j]->policy.max_ratio)/100;
+			  }
+		  }
+	  }
+
 
 	  n_rb_sched_s=0;
 	  n_rb_remain_s = max_rb_s;
@@ -1397,7 +1416,7 @@ void pf_dl_slice(module_id_t module_id,
 	    //sched_ctrl-> slice_for_this_sched);
 	    	continue;
 	    }else{
-	    	printf("In pf_dl sid = %d, selected slice = %d ** \n",sid,sched_ctrl-> slice_for_this_sched);
+	    	//printf("In pf_dl sid = %d, UE %x ** \n",sid,UE->rnti);
 	    }
 
 	    const NR_mac_dir_stats_t *stats = &UE->mac_stats.dl;
@@ -1408,7 +1427,10 @@ void pf_dl_slice(module_id_t module_id,
 	    const uint32_t b = UE->mac_stats.dl.current_bytes;
 	    UE->dl_thr_ue = (1 - a) * UE->dl_thr_ue + a * b;
 
-	    if(remainUEs == 0) continue;
+	    if(remainUEs == 0) {
+	    	//printf("In pf_dl remain_UEs 0 \n");
+	    	continue;
+	    }
 
 
 		/* skip this UE if there are no free HARQ processes. This can happen e.g.
@@ -1433,7 +1455,7 @@ void pf_dl_slice(module_id_t module_id,
 
 		/* Check DL buffer and skip this UE if no bytes and no TA necessary */
 		if (bytes == 0 && frame != (sched_ctrl->ta_frame + 10) % 1024){
-			printf("Buffer empty pf_dl \n");
+			//printf("Buffer empty pf_dl \n");
 			continue;
 		}
 
@@ -1495,7 +1517,7 @@ void pf_dl_slice(module_id_t module_id,
 		int rbStart = 0; // start wrt BWPstart
 
 		if (sched_ctrl->available_dl_harq.head < 0) {
-		  LOG_D(NR_MAC, "[UE %04x][%4d.%2d] UE has no free DL HARQ process, skipping\n",
+		  LOG_I(NR_MAC, "[UE %04x][%4d.%2d] UE has no free DL HARQ process, skipping\n",
 				iterator->UE->rnti,
 				frame,
 				slot);
@@ -1511,7 +1533,7 @@ void pf_dl_slice(module_id_t module_id,
 									 &sched_ctrl->sched_pdcch,
 									 false);
 		if (CCEIndex<0) {
-		  LOG_I(NR_MAC, "[UE %04x][%4d.%2d] could not find free CCE for DL DCI\n",
+		  LOG_D(NR_MAC, "[UE %04x][%4d.%2d] could not find free CCE for DL DCI\n",
 				rnti,
 				frame,
 				slot);
@@ -1526,7 +1548,7 @@ void pf_dl_slice(module_id_t module_id,
 		const int alloc = nr_acknack_scheduling(mac, iterator->UE, frame, slot, r_pucch, 0);
 
 		if (alloc<0) {
-		  LOG_I(NR_MAC, "[UE %04x][%4d.%2d] could not find PUCCH for DL DCI\n",
+		  LOG_D(NR_MAC, "[UE %04x][%4d.%2d] could not find PUCCH for DL DCI\n",
 				rnti,
 				frame,
 				slot);
@@ -1611,22 +1633,31 @@ void pf_dl_slice(module_id_t module_id,
 		  rballoc_mask[rb + sched_pdsch->rbStart] ^= slbitmap;
 
 		//****** Slice info embeded into dlsch allocation*////
-		sched_pdsch->slice_id_dlsch = sched_ctrl-> slice_for_this_sched;
+		//sched_pdsch->slice_id_dlsch = sched_ctrl-> slice_for_this_sched;
 
-		printf("Scheduling UE %04x in slice %d with PRBs %d in  slot %d \n",
-				iterator->UE->rnti,sched_ctrl-> slice_for_this_sched,sched_pdsch->rbSize,slot);
+		//printf("Scheduling UE %04x in slice %d with PRBs %d in  slot %d \n",
+				//iterator->UE->rnti,sched_ctrl-> slice_for_this_sched,sched_pdsch->rbSize,slot);
 
 		remainUEs--;
 		iterator++;
 	}
-   n_rb_sched_s_array[sid]= n_rb_sched_s;
-   min_rb_s[sid]= n_rb_sched_s; //update the min_rb array with actual used prbs
-   n_rb_sched_s_tot+=n_rb_sched_s_array[sid];
+
+	for(int j=0;j< num_slice ;j++){
+		  if(s_array[j].sid == sid) {
+			  s_array[j].min_prbs = n_rb_sched_s;
+			  n_rb_sched_s_tot+=s_array[j].min_prbs;
+		  }
+	}
+
+
+
+   //n_rb_sched_s_array[sid]= n_rb_sched_s;
+   //min_rb_s[sid]= n_rb_sched_s; //update the min_rb array with actual used prbs
+   //n_rb_sched_s_tot+=n_rb_sched_s_array[sid];
    //if(n_rb_sched_s_array[sid]) printf("RBs %d for slice %d in slot %d \n", n_rb_sched_s_array[sid],slice_list_tmp[sid],slot);
  }
   if (n_rb_sched_s_tot > n_rb_sched_tot ) AssertFatal(1==0,"PRB Violation \n");
 }
-
 
 
 

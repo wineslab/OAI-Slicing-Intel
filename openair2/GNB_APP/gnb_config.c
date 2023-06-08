@@ -888,7 +888,7 @@ void RCconfig_nr_macrlc() {
     	NR_Slices_t *SLI_info = &RC.nrmac[j]->SLI_info;
 
     	//init default slice
-    	SLI_info->list[0]=(nr_slice_t*)calloc(1,sizeof(nr_slice_t));
+    	SLI_info->list[0]=(NR_slice_info_t *)calloc(1,sizeof(NR_slice_info_t ));
     	if (!(SLI_info->list[0])) AssertFatal(1==0,"Cannot add the Slice \n");
     	SLI_info->list[0]->s_id  = 0 ;
     	SLI_info->list[0]->policy.min_ratio = 0;
@@ -898,7 +898,7 @@ void RCconfig_nr_macrlc() {
     	int i = 1;
     	for (int s = 0; s < SNSSAIParamList.numelt; s++) {
 
-        	  SLI_info->list[i]=(nr_slice_t*)calloc(1,sizeof(nr_slice_t));
+        	  SLI_info->list[i]=(NR_slice_info_t *)calloc(1,sizeof(NR_slice_info_t));
         	  if (!(SLI_info->list[i])) AssertFatal(1==0,"Cannot add the Slice \n");
 
         	  SLI_info->list[i]->s_id = s+1 ;
