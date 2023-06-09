@@ -361,42 +361,36 @@ void nr_update_slice_policy(module_id_t module_id,
 	      for(int j=1; j < mac->dl_num_slice; j++){
 	    	  //printf("****  j = %d RC.nrmac[j]->dl_slice_info[j].nssai_config.sST %d sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u\n",j,
 
-				if ( (SLI_info->list[j]->conf.nssai_config.sST == sST) &&
-						(SLI_info->list[j]->conf.nssai_config.sD_flag == sD_flag) &&
-						(SLI_info->list[j]->conf.nssai_config.sD[2] == (sD & 0x000000ff) ) &&
-						(SLI_info->list[j]->conf.nssai_config.sD[1] == ( (sD>>8) & 0x000000ff)) &&
-						(SLI_info->list[j]->conf.nssai_config.sD[0] == ( (sD>>16) & 0x000000ff))
-						){
-					//printf(" sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u \n",sched_ctrl->dl_sl_info[lcid].nssai_config.sST);
-					SLI_info->list[j]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
-					SLI_info->list[j]->policy.max_ratio = json_object_get_int (json_object_object_get(s_array_obj, "max_ratio"));
+	    	  if( (SLI_info->list[j]->conf.nssai_config.sST == sST) && (SLI_info->list[j]->conf.nssai_config.sD_flag == sD_flag)){
 
-//					printf("SLI_info->list[%d]->policy.min_ratio %d SLI_info->list[%d]->policy.max_ratio %d\n",j,
-//							SLI_info->list[j]->policy.min_ratio,j,SLI_info->list[j]->policy.max_ratio);
-				}
+	    		  if(sD_flag){
+
+	       			  if( (SLI_info->list[j]->conf.nssai_config.sD[2] == (sD & 0x000000ff))  &&
+	       					  (SLI_info->list[j]->conf.nssai_config.sD[1] == ( (sD>>8) & 0x000000ff)) &&
+							  (SLI_info->list[j]->conf.nssai_config.sD[0] == ( (sD>>16) & 0x000000ff))
+	    					){
+	    	  					SLI_info->list[j]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
+	    	  					SLI_info->list[j]->policy.max_ratio = json_object_get_int (json_object_object_get(s_array_obj, "max_ratio"));
+
+	    	    			  }
+
+	    		  }else{
+	  					SLI_info->list[j]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
+	  					SLI_info->list[j]->policy.max_ratio = json_object_get_int (json_object_object_get(s_array_obj, "max_ratio"));
+	    		  }
+
+
+	    	  }
+
 	      }
-
-
-//		switch(s_id ){
-//			case 0:
-//				SLI_info->list[0]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
-//				break;
-//			case 1:
-//				SLI_info->list[1]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
-//				break;
-//			case 2:
-//				SLI_info->list[2]->policy.min_ratio = json_object_get_int (json_object_object_get(s_array_obj, "min_ratio"));
-//				break;
-//			default:
-//				AssertFatal(1==0,"Not a valid Slice ID  \n");break;
-//		}
-
 	 }
+
+
 
 	 int sum=0;
 
 	 for (int i = 0; i < mac->dl_num_slice; i++) {
-		// printf("mac->nr_slice_info[%d].min_ratio %d \n",i, mac->nr_slice_info[i].min_ratio);
+		 //printf("SLI_info->list[%d]->policy.min_ratio %d \n",i, SLI_info->list[i]->policy.min_ratio);
 		 sum+=SLI_info->list[i]->policy.min_ratio;
 	 }
 	 if(sum>100) AssertFatal(1==0,"Not valid PRB ratio \n");
@@ -428,26 +422,36 @@ void nr_store_dl_slice_info(module_id_t module_id) {
     		 // sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag,sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2]);
 
       for(int j=1; j < RC.nrmac[module_id]->dl_num_slice; j++){
-    	  //printf("****  j = %d RC.nrmac[j]->dl_slice_info[j].nssai_config.sST %d sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u\n",j,
 
-			if ( (SLI_info->list[j]->conf.nssai_config.sST == sched_ctrl->dl_sl_info[lcid].nssai_config.sST) &&
-					(SLI_info->list[j]->conf.nssai_config.sD_flag == sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag) &&
-					(SLI_info->list[j]->conf.nssai_config.sD[0] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[0]) &&
-					(SLI_info->list[j]->conf.nssai_config.sD[1] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[1]) &&
-					(SLI_info->list[j]->conf.nssai_config.sD[2] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2])
-					){
-				//printf(" sched_ctrl->dl_sl_info[lcid].nssai_config.sST = %u \n",sched_ctrl->dl_sl_info[lcid].nssai_config.sST);
-				sched_ctrl->dl_sl_info[lcid].id = SLI_info->list[j]->s_id;
-			}
+    	  //printf("**** SLI_info->list[%d]->conf.nssai_config.sST %u\n",j,SLI_info->list[j]->conf.nssai_config.sST);
+    	  //printf("**** SLI_info->list[%d]->conf.nssai_config.sD_flag %u\n",j,SLI_info->list[j]->conf.nssai_config.sD_flag);
+
+    	  if ( (SLI_info->list[j]->conf.nssai_config.sST == sched_ctrl->dl_sl_info[lcid].nssai_config.sST) &&
+    			  (SLI_info->list[j]->conf.nssai_config.sD_flag == sched_ctrl->dl_sl_info[lcid].nssai_config.sD_flag)
+				  ){
+
+			  if(SLI_info->list[j]->conf.nssai_config.sD_flag){
+				  if((SLI_info->list[j]->conf.nssai_config.sD[2] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[2])  &&
+    					  (SLI_info->list[j]->conf.nssai_config.sD[1] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[1]) &&
+						  (SLI_info->list[j]->conf.nssai_config.sD[0] == sched_ctrl->dl_sl_info[lcid].nssai_config.sD[0])){
+
+					  sched_ctrl->dl_sl_info[lcid].id = SLI_info->list[j]->s_id;
+				  }
+
+			  }else{
+				  sched_ctrl->dl_sl_info[lcid].id = SLI_info->list[j]->s_id;
+			  }
+
+
+    	  }
+
       }
-
 
     }
 
     // We have slice<-->nssai struct for all lcid: Make an list of active slices at each UE
     // Initializing slice id for all PDU sessions
 	for (int l = 0; l <= MAX_NUM_PDU_SESSION; l++){
-		//sched_ctrl->active_slice[l]= -1;
 		sched_ctrl->avail_slice_list[l].id = -1;
 		sched_ctrl->avail_slice_list[l].bytes = 0;
 	}
@@ -462,14 +466,17 @@ void nr_store_dl_slice_info(module_id_t module_id) {
     }
     for (int i = 0; i < sched_ctrl->dl_lc_num; ++i) {
     	const int lcid = sched_ctrl->dl_lc_ids[i];
-    	if(sched_ctrl->dl_sl_info[lcid].id) counts[(unsigned)(sched_ctrl->dl_sl_info[lcid].id)]++;
+    	if(sched_ctrl->dl_sl_info[lcid].id) {
+    		//printf("sched_ctrl->dl_sl_info[%d].id %d \n",lcid,sched_ctrl->dl_sl_info[lcid].id);
+    		counts[(unsigned)(sched_ctrl->dl_sl_info[lcid].id)]++;
+    	}
     }
+
 
     int k=1;
     for (int i = 0; i < 256; ++i) {
     	//printf(" counts[%d] = %d",i,counts[i]);
     	if (counts[i]){
-    		//sched_ctrl->active_slice[k] = i;
     		sched_ctrl->avail_slice_list[k].id = i;
     		k++;
     	}
@@ -478,12 +485,12 @@ void nr_store_dl_slice_info(module_id_t module_id) {
 	for (int k=1;k <= MAX_NUM_PDU_SESSION;k++){
 		//printf (" k =%d, sched_ctrl->active_slice[k] %d",k,sched_ctrl->active_slice[k]);
 		//if(sched_ctrl->active_slice[k] > 0) sched_ctrl->num_slice_d++;
-		if(sched_ctrl->avail_slice_list[k].id  > 0) sched_ctrl->num_slice_d++;
+		if( (sched_ctrl->avail_slice_list[k].id)  > 0) sched_ctrl->num_slice_d++;
 	}
 
 //	 	  printf("\n\n Slice for UE %d = [",UE->rnti);
 //	 	  for (int k=0;k < sched_ctrl->num_slice_d;k++){
-//	 		  printf(" %d ",sched_ctrl->active_slice[k]);
+//	 		  printf(" %d ",sched_ctrl->avail_slice_list[k].id);
 //	 	  }
 //	 	 printf("]\n ");
 

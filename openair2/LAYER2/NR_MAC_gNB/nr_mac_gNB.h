@@ -639,7 +639,6 @@ typedef struct {
 
   NR_mac_slice_t avail_slice_list[MAX_NUM_PDU_SESSION+1];
 
-  int8_t active_slice[MAX_NUM_PDU_SESSION+1];
   uint8_t num_slice_d;
   uint32_t num_total_bytes_slice[MAX_NUM_PDU_SESSION+1];
   int8_t slice_for_this_sched;
