@@ -882,6 +882,7 @@ typedef struct gNB_MAC_INST_s {
   //slicing
   uint8_t dl_num_slice;
   NR_Slices_t SL_info;
+  char *SliceConfigFile;
 
 } gNB_MAC_INST;
 

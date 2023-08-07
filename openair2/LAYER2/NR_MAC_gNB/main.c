@@ -321,6 +321,17 @@ size_t dump_mac_stats(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset
                        UE->rnti,
                        stats->ulsch_total_bytes_scheduled, stats->ul.total_bytes);
 
+    for (int s = 0; s < sched_ctrl->num_slice_d; s++) {
+    	int sid = sched_ctrl->avail_slice_list[s].sid;
+        output += snprintf(output,
+                           end - output,
+                           "UE %04x: SLID %d: %"PRIu64" bytes TX\n",
+                           UE->rnti,
+                           sid,
+                           stats->dl.slice[sid].total_bytes);
+    }
+
+
     for (int lc_id = 0; lc_id < 63; lc_id++) {
       if (stats->dl.lc_bytes[lc_id] > 0)
         output += snprintf(output,

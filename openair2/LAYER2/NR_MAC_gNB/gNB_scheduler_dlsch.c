@@ -326,11 +326,11 @@ void nr_update_slice_policy(module_id_t module_id, frame_t frame, sub_frame_t sl
   NR_Slices_t *SL_info = &mac->SL_info;
   struct json_object *s_obj, *s_array, *s_array_obj;
   uint8_t sST, sD_flag, sD;
+  const char *file = RC.nrmac[module_id]->SliceConfigFile;
 
-  static const char filename[] = "../../../rrmPolicy.json";
-  s_obj = json_object_from_file(filename);
+  s_obj = json_object_from_file(file);
 
-  if(json_object_from_file(filename) == NULL){
+  if(json_object_from_file(file) == NULL){
     printf("[SL Policy]: Error in opening rrmPolicy file \n");
 	return;
   }
@@ -1133,8 +1133,8 @@ void pf_dl_slice(module_id_t module_id,
     n_rb_sched_s += sched_pdsch->rbSize;
     n_rb_remain_s -= sched_pdsch->rbSize;
 
-    if(sched_pdsch->rbSize > 6)printf("[UE %04x][%4d.%2d] slice %d , TB_size %u mcs %d RBs %d\n", iterator->UE->rnti, frame, slot, SL->sid, sched_pdsch->tb_size,
-		  sched_pdsch->mcs, sched_pdsch->rbSize);
+//    printf("[UE %04x][%4d.%2d] slice %d , TB_size %u mcs %d RBs %d\n", iterator->UE->rnti, frame, slot, SL->sid, sched_pdsch->tb_size,
+//		  sched_pdsch->mcs, sched_pdsch->rbSize);
 
     for (int rb = 0; rb < sched_pdsch->rbSize; rb++)
       rballoc_mask[rb + sched_pdsch->rbStart] ^= slbitmap;

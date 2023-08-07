@@ -72,6 +72,8 @@
 #define CONFIG_STRING_MACRLC_MIN_GRANT_PRB                 "min_grant_prb"
 #define CONFIG_STRING_MACRLC_MIN_GRANT_MCS                 "min_grant_mcs"
 #define CONFIG_STRING_MACRLC_IDENTITY_PM                   "identity_precoding_matrix"
+#define CONFIG_STRING_MACRLC_SLICE_CONF                    "SliceConf"
+
 
 #define HLP_MACRLC_UL_PRBBLACK "SNR threshold to decide whether a PRB will be blacklisted or not"
 #define HLP_MACRLC_DL_BLER_UP "Upper threshold of BLER to decrease DL MCS"
@@ -125,7 +127,8 @@
   {CONFIG_STRING_MACRLC_UL_HARQ_ROUND_MAX,           HLP_MACRLC_UL_HARQ_MAX,   0, .u8ptr=NULL,  .defintval=4,               TYPE_UINT8,   0}, \
   {CONFIG_STRING_MACRLC_MIN_GRANT_PRB,               HLP_MACRLC_MIN_GRANT_PRB, 0, .u8ptr=NULL,  .defintval=5,               TYPE_UINT8,   0}, \
   {CONFIG_STRING_MACRLC_MIN_GRANT_MCS,               HLP_MACRLC_MIN_GRANT_MCS, 0, .u8ptr=NULL,  .defintval=9,               TYPE_UINT8,   0}, \
-  {CONFIG_STRING_MACRLC_IDENTITY_PM,                 HLP_MACRLC_IDENTITY_PM,   PARAMFLAG_BOOL, .u8ptr=NULL, .defintval=0,   TYPE_UINT8,   0}, \
+  {CONFIG_STRING_MACRLC_IDENTITY_PM,                 HLP_MACRLC_IDENTITY_PM,   PARAMFLAG_BOOL,  .u8ptr=NULL, .defintval=0,  TYPE_UINT8,   0}, \
+  {CONFIG_STRING_MACRLC_SLICE_CONF,                  NULL,                     0, .strptr=NULL, .defstrval="rrmPolicy.json",TYPE_STRING,  0}, \
 }
 // clang-format off
 
@@ -163,6 +166,7 @@
 #define MACRLC_MIN_GRANT_PRB_IDX                               31
 #define MACRLC_MIN_GRANT_MCS_IDX                               32
 #define MACRLC_IDENTITY_PM_IDX                                 33
+#define MACRLC_SLICE_CONF_IDX                                  34
 
 #define MACRLCPARAMS_CHECK { \
   { .s5 = { NULL } }, \
@@ -198,6 +202,7 @@
   { .s2 = { config_check_intrange, {1, 8} } }, /* UL max HARQ rounds */ \
   { .s5 = { NULL } }, \
   { .s5 = { NULL } }, \
+  { .s2 = { NULL } }, \
   { .s2 = { NULL } }, \
 }
 

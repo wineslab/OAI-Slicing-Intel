@@ -931,6 +931,7 @@ void RCconfig_nr_macrlc() {
     for (j = 0; j < RC.nb_nr_macrlc_inst; j++) {
 
       // Initializing slices
+      RC.nrmac[j]->SliceConfigFile = strdup(*(MacRLC_ParamList.paramarray[j][MACRLC_SLICE_CONF_IDX].strptr));
       AssertFatal(SNSSAIParamList.numelt <= MAX_NUM_SLICE, "Slices in config exceeds the slices supported by gNB current implementation \n");
       RC.nrmac[j]->dl_num_slice = SNSSAIParamList.numelt + 1; // default slice 0, for SRB only traffic
       NR_Slices_t *SL_info = &RC.nrmac[j]->SL_info;
@@ -954,7 +955,7 @@ void RCconfig_nr_macrlc() {
         }
         SL_info->list[s + 1]->spolicy.min_ratio = 0;
         SL_info->list[s + 1]->spolicy.max_ratio = 100;
-        }
+      }
 
       RC.nb_nr_mac_CC[j] = *(MacRLC_ParamList.paramarray[j][MACRLC_CC_IDX].iptr);
       RC.nrmac[j]->pusch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUSCHTARGETSNRX10_IDX].iptr);
