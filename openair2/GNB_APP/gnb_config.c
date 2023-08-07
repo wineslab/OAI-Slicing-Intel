@@ -904,7 +904,6 @@ void RCconfig_nr_macrlc() {
     }
   }
 
-
   /* get list of sst/sd from configuration file */
   paramdef_t SNSSAIParams[] = GNBSNSSAIPARAMS_DESC;
   paramlist_def_t SNSSAIParamList = {GNB_CONFIG_STRING_SNSSAI_LIST, NULL, 0};
@@ -914,7 +913,6 @@ void RCconfig_nr_macrlc() {
   config_getlist(&SNSSAIParamList, SNSSAIParams, sizeof(SNSSAIParams)/sizeof(paramdef_t), sstr);
   AssertFatal(SNSSAIParamList.numelt > 0, "no slice configuration found (snssaiList in the configuration file)\n");
   AssertFatal(SNSSAIParamList.numelt <= 1024, "maximum size for slice support list is 1024, see F1AP 38.473 9.3.1.37\n");
-
 
   paramdef_t MacRLC_Params[] = MACRLCPARAMS_DESC;
   paramlist_def_t MacRLC_ParamList = {CONFIG_STRING_MACRLC_LIST, NULL, 0};
@@ -932,68 +930,59 @@ void RCconfig_nr_macrlc() {
 
     for (j = 0; j < RC.nb_nr_macrlc_inst; j++) {
 
-
-    	/* Initializing slices */
-
-    	if (SNSSAIParamList.numelt > MAX_NUM_SLICE) AssertFatal(1==0,"Slices in gNB config exceeds Cannot add the Slice \n");
-    	RC.nrmac[j]->dl_num_slice = SNSSAIParamList.numelt + 1;
-    	NR_Slices_t *SLI_info = &RC.nrmac[j]->SLI_info;
-
-    	//init default slice
-    	SLI_info->list[0]=(NR_slice_info_t *)calloc(1,sizeof(NR_slice_info_t ));
-    	if (!(SLI_info->list[0])) AssertFatal(1==0,"Cannot add the Slice \n");
-    	SLI_info->list[0]->s_id  = 0 ;
-    	SLI_info->list[0]->policy.min_ratio = 0;
-    	SLI_info->list[0]->policy.max_ratio = 100;
-
-    	// init slices read from gNB config file
-    	int i = 1;
-    	for (int s = 0; s < SNSSAIParamList.numelt; s++) {
-
-        	  SLI_info->list[i]=(NR_slice_info_t *)calloc(1,sizeof(NR_slice_info_t));
-        	  if (!(SLI_info->list[i])) AssertFatal(1==0,"Cannot add the Slice \n");
-
-        	  SLI_info->list[i]->s_id = s+1 ;
-        	  SLI_info->list[i]->conf.nssai_config.sST = *SNSSAIParamList.paramarray[s][GNB_SLICE_SERVICE_TYPE_IDX].uptr;
-        	  SLI_info->list[i]->conf.nssai_config.sD_flag = *SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr != 0xffffff;
-
-          	if (SLI_info->list[i]->conf.nssai_config.sD_flag){
-          		SLI_info->list[i]->conf.nssai_config.sD[2]  = (*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr & 0x000000ff);
-          		SLI_info->list[i]->conf.nssai_config.sD[1]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>8) & 0x000000ff);
-          		SLI_info->list[i]->conf.nssai_config.sD[0]  = (((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr)>>16) & 0x000000ff);
-          	}
-
-        	SLI_info->list[i]->policy.min_ratio = 0;
-        	SLI_info->list[i]->policy.max_ratio = 100;
-
-          	i++;
-    	}
-
-
-        LOG_I(NR_MAC,
-              "Configured slices PUSCH Target %d, PUCCH Target %d, PUCCH Failure %d, PUSCH Failure %d\n",
-              RC.nrmac[j]->pusch_target_snrx10,
-              RC.nrmac[j]->pucch_target_snrx10,
-              RC.nrmac[j]->pucch_failure_thres,
-              RC.nrmac[j]->pusch_failure_thres);
-
-        printf("\n**** Configured slices at MAC \n");
-
-        for (int s = 0; s <= SNSSAIParamList.numelt; s++) {
-      	 printf("Slice id = %d [ ",SLI_info->list[s]->s_id );
-
-      	 printf("sst = %d, ",SLI_info->list[s]->conf.nssai_config.sST);
-      	 printf("SD falg = %d, ",SLI_info->list[s]->conf.nssai_config.sD_flag);
-      	 if(SLI_info->list[s]->conf.nssai_config.sD_flag){
-          	 for(int k=0;k<3;k++){
-          		 printf("sD[%d]=%u ",k,SLI_info->list[s]->conf.nssai_config.sD[k]);
-          	 }
-      	 }
-      	 printf("]\n");
-
+      // Initializing slices
+      AssertFatal(SNSSAIParamList.numelt <= MAX_NUM_SLICE, "Slices in config exceeds the slices supported by gNB current implementation \n");
+      RC.nrmac[j]->dl_num_slice = SNSSAIParamList.numelt + 1; // default slice 0, for SRB only traffic
+      NR_Slices_t *SL_info = &RC.nrmac[j]->SL_info;
+      // init default slice
+      SL_info->list[0] = (NR_slice_info_t *)calloc(1, sizeof(NR_slice_info_t));
+      if (!(SL_info->list[0])) AssertFatal(1 == 0, "Cannot add the Slice \n");
+      SL_info->list[0]->sid = 0;
+      SL_info->list[0]->spolicy.min_ratio = 0;
+      SL_info->list[0]->spolicy.max_ratio = 100;
+      // init remaning slices
+      for (int s = 0; s < SNSSAIParamList.numelt; s++) {
+        SL_info->list[s + 1] = (NR_slice_info_t *)calloc(1, sizeof(NR_slice_info_t));
+        if (!(SL_info->list[s + 1])) AssertFatal(1 == 0, "Cannot add the Slice \n");
+        SL_info->list[s + 1]->sid = s + 1;
+        SL_info->list[s + 1]->nssai.sST = *SNSSAIParamList.paramarray[s][GNB_SLICE_SERVICE_TYPE_IDX].uptr;
+        SL_info->list[s + 1]->nssai.sD_flag = *SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr != 0xffffff;
+        if (SL_info->list[s + 1]->nssai.sD_flag) {
+          SL_info->list[s + 1]->nssai.sD[2] = (uint8_t)(*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr & 0x000000ff);
+          SL_info->list[s + 1]->nssai.sD[1] = (uint8_t)(((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr) >> 8) & 0x000000ff);
+          SL_info->list[s + 1]->nssai.sD[0] = (uint8_t)(((*SNSSAIParamList.paramarray[s][GNB_SLICE_DIFFERENTIATOR_IDX].uptr) >> 16) & 0x000000ff);
         }
-        printf("**** \n ");
+        SL_info->list[s + 1]->spolicy.min_ratio = 0;
+        SL_info->list[s + 1]->spolicy.max_ratio = 100;
+        }
 
+      RC.nb_nr_mac_CC[j] = *(MacRLC_ParamList.paramarray[j][MACRLC_CC_IDX].iptr);
+      RC.nrmac[j]->pusch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUSCHTARGETSNRX10_IDX].iptr);
+      RC.nrmac[j]->pucch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUCCHTARGETSNRX10_IDX].iptr);
+      RC.nrmac[j]->ul_prbblack_SNR_threshold = *(MacRLC_ParamList.paramarray[j][MACRLC_UL_PRBBLACK_SNR_THRESHOLD_IDX].iptr);
+      RC.nrmac[j]->pucch_failure_thres = *(MacRLC_ParamList.paramarray[j][MACRLC_PUCCHFAILURETHRES_IDX].iptr);
+      RC.nrmac[j]->pusch_failure_thres = *(MacRLC_ParamList.paramarray[j][MACRLC_PUSCHFAILURETHRES_IDX].iptr);
+
+      LOG_I(NR_MAC,
+            "PUSCH Target %d, PUCCH Target %d, PUCCH Failure %d, PUSCH Failure %d\n",
+            RC.nrmac[j]->pusch_target_snrx10,
+            RC.nrmac[j]->pucch_target_snrx10,
+            RC.nrmac[j]->pucch_failure_thres,
+            RC.nrmac[j]->pusch_failure_thres);
+
+      printf("\n**** Configured slices at MAC \n");
+      for (int s = 0; s <= SNSSAIParamList.numelt; s++) {
+        printf("Slice id = %d [ ", SL_info->list[s]->sid);
+        printf("sst = %d, ", SL_info->list[s]->nssai.sST);
+        printf("SD falg = %d, ", SL_info->list[s]->nssai.sD_flag);
+        if (SL_info->list[s]->nssai.sD_flag) {
+          for (int k = 0; k < 3; k++) {
+            printf("sD[%d]=%u ", k, SL_info->list[s]->nssai.sD[k]);
+          }
+        }
+        printf("]\n");
+      }
+      printf("****\n");
 
       RC.nb_nr_mac_CC[j] = *(MacRLC_ParamList.paramarray[j][MACRLC_CC_IDX].iptr);
       RC.nrmac[j]->pusch_target_snrx10 = *(MacRLC_ParamList.paramarray[j][MACRLC_PUSCHTARGETSNRX10_IDX].iptr);
