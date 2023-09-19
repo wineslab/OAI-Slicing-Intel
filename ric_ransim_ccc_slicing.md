@@ -63,6 +63,8 @@ Use curl to send control MSG to RIC
 ```
 curl -X PUT -H "Content-Type: application/json" 10.21.64.12:31963/policytypes/ORAN_SliceSLATarget_1.0.0/policies/1 -d @policyRatio1.json
 ```
+where `10.21.64.12` is the IP of DU at vlan.064.pr. If you prefer another vlan, change it accordingly. 
+
 
 An example of policyRatio1.json:
 ```
