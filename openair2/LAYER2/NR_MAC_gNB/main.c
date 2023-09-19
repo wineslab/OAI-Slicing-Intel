@@ -160,6 +160,7 @@ size_t o1_copy_mac_stats_csv(gNB_MAC_INST *gNB, char *output, size_t strlen, boo
   return output - begin;
 }
 
+/*
 void *nrmac_stats_thread(void *arg)
 {
 
@@ -197,33 +198,33 @@ void *nrmac_stats_thread(void *arg)
   fclose(file);
   return NULL;
 }
+*/
 
+void *nrmac_stats_thread(void *arg) {
 
-// void *nrmac_stats_thread(void *arg) {
+   gNB_MAC_INST *gNB = (gNB_MAC_INST *)arg;
 
-//   gNB_MAC_INST *gNB = (gNB_MAC_INST *)arg;
+   char output[MACSTATSSTRLEN] = {0};
+   const char *end = output + MACSTATSSTRLEN;
+   FILE *file = fopen("nrMAC_stats.log","w");
+   AssertFatal(file!=NULL,"Cannot open nrMAC_stats.log, error %s\n",strerror(errno));
 
-//   char output[MACSTATSSTRLEN] = {0};
-//   const char *end = output + MACSTATSSTRLEN;
-//   FILE *file = fopen("nrMAC_stats.log","w");
-//   AssertFatal(file!=NULL,"Cannot open nrMAC_stats.log, error %s\n",strerror(errno));
-
-//   while (oai_exit == 0) {
-//     char *p = output;
-//     p += dump_mac_stats(gNB, p, end - p, false);
-//     p += snprintf(p, end - p, "\n");
-//     p += print_meas_log(&gNB->eNB_scheduler, "DL & UL scheduling timing", NULL, NULL, p, end - p);
-//     p += print_meas_log(&gNB->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
-//     p += print_meas_log(&gNB->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
-//     p += print_meas_log(&gNB->rlc_status_ind, "rlc_status_ind", NULL, NULL, p, end - p);
-//     fwrite(output, p - output, 1, file);
-//     fflush(file);
-//     sleep(1);
-//     fseek(file,0,SEEK_SET);
-//   }
-//   fclose(file);
-//   return NULL;
-// }
+   while (oai_exit == 0) {
+     char *p = output;
+     p += dump_mac_stats(gNB, p, end - p, false);
+     p += snprintf(p, end - p, "\n");
+     p += print_meas_log(&gNB->eNB_scheduler, "DL & UL scheduling timing", NULL, NULL, p, end - p);
+     p += print_meas_log(&gNB->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
+     p += print_meas_log(&gNB->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
+     p += print_meas_log(&gNB->rlc_status_ind, "rlc_status_ind", NULL, NULL, p, end - p);
+     fwrite(output, p - output, 1, file);
+     fflush(file);
+     sleep(1);
+     fseek(file,0,SEEK_SET);
+   }
+   fclose(file);
+   return NULL;
+}
 
 void clear_mac_stats(gNB_MAC_INST *gNB) {
   UE_iterator(gNB->UE_info.list, UE) {
