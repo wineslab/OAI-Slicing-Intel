@@ -1,20 +1,20 @@
-
 {
-	"rrmPolicyRatio" : [
-		{
-		"sST":1,
-		"sD_flag":1,
-		"sD":1,
-		"min_ratio":70,
-		"max_ratio":100,
-		},
-		{
-		"sST":1,
-		"sD_flag":1,
-		"sD":2,
-		"min_ratio":20,
-		"max_ratio":100
-		}
-	]
-     }
-
+  "rrmPolicyRatio": [
+    {
+      "sST": 1,
+      "sD_flag": 1,
+      "sD": 1,
+      "min_ratio": 50,
+      "max_ratio": 100,
+      "dedicated_ratio": 5
+    },
+    {
+      "sST": 1,
+      "sD_flag": 1,
+      "sD": 2,
+      "min_ratio": 40,
+      "max_ratio": 100,
+      "dedicated_ratio": 5
+    }
+  ]
+}
